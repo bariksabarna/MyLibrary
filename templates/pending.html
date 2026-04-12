@@ -1,0 +1,28 @@
+{% extends 'base_auth.html' %}
+{% block title %}Pending Approval - MyLibrary{% endblock %}
+{% block content %}
+<div class="auth-card">
+  <div class="auth-card-header">
+    <div class="otp-icon pending-icon"><i class="fa-solid fa-hourglass-half"></i></div>
+    <h2>Awaiting Approval</h2>
+    <p>Your account is pending admin review</p>
+  </div>
+  <div class="pending-info">
+    <div class="pending-step">
+      <div class="step-icon done"><i class="fa-solid fa-envelope-circle-check"></i></div>
+      <div><strong>Email Verified</strong><p>OTP confirmed successfully</p></div>
+    </div>
+    <div class="pending-step">
+      <div class="step-icon active"><i class="fa-solid fa-spinner fa-spin"></i></div>
+      <div><strong>Admin Review</strong><p>Your account is being reviewed</p></div>
+    </div>
+    <div class="pending-step">
+      <div class="step-icon"><i class="fa-solid fa-door-open"></i></div>
+      <div><strong>Access Granted</strong><p>You'll receive an email once approved</p></div>
+    </div>
+  </div>
+  <div class="auth-footer">
+    <a href="{{ url_for('logout') }}" class="btn-auth btn-outline"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,383 @@
+{% extends 'base.html' %}
+{% block title %}Scan QR - MyLibrary{% endblock %}
+{% block content %}
+<div class="page-container">
+  <div class="page-header">
+    <h1><i class="fa-solid fa-qrcode"></i> QR Scanner</h1>
+    <p>Scan borrow, return, or library card QR codes</p>
+  </div>
+
+  <div class="scan-wrapper">
+    <div class="glass-card scan-card">
+      <div class="scan-tabs">
+        <button class="scan-tab active" onclick="switchTab('camera',this)"><i class="fa-solid fa-camera"></i> Camera Scan</button>
+        <button class="scan-tab" onclick="switchTab('manual',this)"><i class="fa-solid fa-keyboard"></i> Manual Entry</button>
+      </div>
+
+      <div id="cameraTab" class="scan-section">
+        <div class="camera-wrap">
+          <video id="qrVideo" autoplay playsinline></video>
+          <canvas id="qrCanvas" style="display:none;"></canvas>
+          <div class="scan-overlay">
+            <div class="scan-frame"><span></span><span></span><span></span><span></span></div>
+            <p class="scan-hint">Align QR code within the frame</p>
+          </div>
+          <div id="scanStatus" class="scan-status" style="display:none;"></div>
+        </div>
+        <div class="camera-controls">
+          <button class="btn-primary" id="startCamBtn" onclick="startCamera()"><i class="fa-solid fa-play"></i> Start Camera</button>
+          <button class="btn-outline" id="stopCamBtn" onclick="stopCamera()" style="display:none;"><i class="fa-solid fa-stop"></i> Stop Camera</button>
+        </div>
+      </div>
+
+      <div id="manualTab" class="scan-section" style="display:none;">
+        <div class="manual-input-wrap">
+          <div class="form-group">
+            <label><i class="fa-solid fa-key"></i> Enter Token</label>
+            <input type="text" id="manualToken" placeholder="BORROW-XXXXXXXX  or  RETURN-XXXXXXXX  or  LIBCARD-..." onkeydown="if(event.key==='Enter')checkManualToken()">
+          </div>
+          <button class="btn-primary w-full" onclick="checkManualToken()"><i class="fa-solid fa-search"></i> Check Token</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="resultPanel" class="glass-card result-panel" style="display:none;">
+      <div id="resultContent"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Borrow Issue Modal -->
+<div id="issueModal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeModal('issueModal')">
+  <div class="modal glass-card">
+    <div class="modal-header">
+      <h3><i class="fa-solid fa-book-circle-arrow-right"></i> Confirm Book Issue</h3>
+      <button onclick="closeModal('issueModal')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body" id="issueModalBody"></div>
+    <div class="modal-footer">
+      <button class="btn-success btn-lg" id="confirmIssueBtn"><i class="fa-solid fa-check"></i> Confirm Issue</button>
+      <button class="btn-outline" onclick="closeModal('issueModal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Return Modal -->
+<div id="returnModal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeModal('returnModal')">
+  <div class="modal glass-card">
+    <div class="modal-header">
+      <h3><i class="fa-solid fa-rotate-left"></i> Confirm Book Return</h3>
+      <button onclick="closeModal('returnModal')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body" id="returnModalBody"></div>
+    <div class="modal-footer">
+      <button class="btn-warning btn-lg" id="confirmReturnBtn"><i class="fa-solid fa-check"></i> Confirm Return</button>
+      <button class="btn-outline" onclick="closeModal('returnModal')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Library Card Modal -->
+<div id="cardModal" class="modal-overlay" style="display:none;" onclick="if(event.target===this)closeModal('cardModal')">
+  <div class="modal glass-card">
+    <div class="modal-header">
+      <h3><i class="fa-solid fa-id-card"></i> Library Card Verified</h3>
+      <button onclick="closeModal('cardModal')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body" id="cardModalBody"></div>
+    <div class="modal-footer">
+      <button class="btn-primary" onclick="closeModal('cardModal')"><i class="fa-solid fa-check"></i> Done</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jsQR/1.4.0/jsQR.min.js"></script>
+<script>
+let videoStream = null, scanActive = false, lastScanned = '', currentBorrowId = null;
+
+function switchTab(tab, btn) {
+  document.querySelectorAll('.scan-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.scan-section').forEach(s => s.style.display = 'none');
+  document.getElementById(tab + 'Tab').style.display = 'block';
+  if (tab !== 'camera') stopCamera();
+}
+
+async function startCamera() {
+  try {
+    videoStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'environment', width: { ideal: 640 }, height: { ideal: 480 } }
+    });
+    document.getElementById('qrVideo').srcObject = videoStream;
+    document.getElementById('startCamBtn').style.display = 'none';
+    document.getElementById('stopCamBtn').style.display = 'inline-flex';
+    scanActive = true;
+    scanFrame();
+  } catch(e) {
+    showScanStatus('Camera denied. Use manual entry instead.', 'error');
+  }
+}
+
+function stopCamera() {
+  scanActive = false;
+  if (videoStream) { videoStream.getTracks().forEach(t => t.stop()); videoStream = null; }
+  document.getElementById('startCamBtn').style.display = 'inline-flex';
+  document.getElementById('stopCamBtn').style.display = 'none';
+}
+
+function scanFrame() {
+  if (!scanActive) return;
+  const v = document.getElementById('qrVideo');
+  const c = document.getElementById('qrCanvas');
+  if (v.readyState === v.HAVE_ENOUGH_DATA) {
+    c.width = v.videoWidth; c.height = v.videoHeight;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(v, 0, 0);
+    const img  = ctx.getImageData(0, 0, c.width, c.height);
+    const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+    if (code && code.data && code.data !== lastScanned) {
+      lastScanned = code.data;
+      setTimeout(() => lastScanned = '', 3000);
+      processToken(code.data);
+    }
+  }
+  requestAnimationFrame(scanFrame);
+}
+
+function showScanStatus(msg, type) {
+  const el = document.getElementById('scanStatus');
+  el.textContent = msg;
+  el.className   = 'scan-status ' + type;
+  el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', 4000);
+}
+
+function checkManualToken() {
+  const raw = document.getElementById('manualToken').value.trim();
+  if (raw) processToken(raw);
+}
+
+async function processToken(token) {
+  token = token.trim();
+  showScanStatus('Checking token...', 'info');
+
+  let r;
+  try {
+    r = await fetch('/admin/check-token', {
+      method:      'POST',
+      credentials: 'same-origin',
+      headers:     { 'Content-Type': 'application/json' },
+      body:        JSON.stringify({ token })
+    });
+  } catch(e) {
+    showResultError('Cannot reach server. Check your internet connection.');
+    return;
+  }
+
+  const contentType = r.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    if (r.status === 401 || r.url.includes('/login')) {
+      showResultError('Session expired. Please log out and log in again, then retry.');
+    } else {
+      showResultError('Unexpected server response (status ' + r.status + '). Reload the page and try again.');
+    }
+    return;
+  }
+
+  let data;
+  try { data = await r.json(); }
+  catch(e) { showResultError('Server returned invalid response. Please reload the page.'); return; }
+
+  if (data.error) { showResultError(data.error); return; }
+
+  currentBorrowId = data.borrow_id;
+
+  if      (data.type === 'borrow')       showBorrowModal(data);
+  else if (data.type === 'return')       showReturnModal(data);
+  else if (data.type === 'library_card') showLibraryCardModal(data);
+  else showResultError('Unknown token type: ' + data.type);
+
+  showScanStatus('Token found!', 'success');
+}
+
+function showResultError(msg) {
+  const p = document.getElementById('resultPanel');
+  p.style.display = 'block';
+  document.getElementById('resultContent').innerHTML =
+    `<div class="result-error">
+       <i class="fa-solid fa-circle-exclamation" style="font-size:2rem;margin-bottom:10px;display:block;"></i>
+       <p style="font-weight:700;">${esc(msg)}</p>
+     </div>`;
+}
+
+function showBorrowModal(d) {
+  const u = d.user || {}, b = d.book || {};
+  const books = (d.current_books || []).map(t => `<li>${esc(t)}</li>`).join('') || '<li>None</li>';
+  document.getElementById('issueModalBody').innerHTML = `
+    <div class="modal-user-info">
+      ${u.profile_image_url
+        ? `<img src="${esc(u.profile_image_url)}" class="modal-avatar" onerror="this.style.display='none'">`
+        : '<div class="modal-avatar-ph"><i class="fa-solid fa-user"></i></div>'}
+      <div>
+        <h3>${esc(u.name || '—')}</h3>
+        <p>${esc(u.email || '—')}</p>
+        <p><strong>${u.user_type === 'student' ? esc(u.year || '') + ' Year' : esc(u.trade || '—')}</strong>
+          ${u.reg_number ? ' &middot; ' + esc(u.reg_number) : ''}</p>
+      </div>
+      <img src="data:image/png;base64,${d.card_qr || ''}" class="modal-card-qr">
+    </div>
+    <div class="modal-book-info">
+      ${b.cover_url ? `<img src="${esc(b.cover_url)}" class="modal-book-cover">` : ''}
+      <div>
+        <h4>${esc(b.title || '—')}</h4>
+        <p>${esc(b.author || '')}</p>
+        <p class="text-success"><i class="fa-solid fa-calendar"></i> Due: <strong>${esc(d.due_date || '')}</strong></p>
+      </div>
+    </div>
+    <div class="modal-current-books">
+      <p><strong>Currently borrowed (${(d.current_books || []).length}):</strong></p>
+      <ul>${books}</ul>
+    </div>`;
+  document.getElementById('issueModal').style.display = 'flex';
+  document.getElementById('confirmIssueBtn').onclick = confirmIssue;
+}
+
+function showReturnModal(d) {
+  const u = d.user || {}, b = d.book || {};
+  document.getElementById('returnModalBody').innerHTML = `
+    <div class="modal-user-info">
+      <div><h3>${esc(u.name || '—')}</h3><p>${esc(u.email || '—')}</p></div>
+    </div>
+    <div class="modal-book-info">
+      <div><h4>${esc(b.title || '—')}</h4><p>${esc(b.author || '')}</p></div>
+    </div>
+    <div class="modal-return-details">
+      <div class="meta-row"><span>Borrow Date</span><span>${esc(d.borrow_date || '—')}</span></div>
+      <div class="meta-row"><span>Due Date</span><span>${esc(d.due_date || '—')}</span></div>
+      <div class="meta-row">
+        <span>Fine</span>
+        <span ${d.fine > 0 ? 'style="color:#ef4444;font-weight:bold;font-size:1.2em;"' : 'style="color:#00d4aa;"'}>
+          ${d.fine > 0 ? '&#8377;' + d.fine : 'No Fine'}
+        </span>
+      </div>
+    </div>`;
+  document.getElementById('returnModal').style.display = 'flex';
+  document.getElementById('confirmReturnBtn').onclick = confirmReturn;
+}
+
+function showLibraryCardModal(d) {
+  const u = d.user || {};
+  const bookRows = (d.active_books || []).length > 0
+    ? (d.active_books || []).map(b => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06);">
+          <div>
+            <strong style="font-size:0.855rem;">${esc(b.title)}</strong>
+            <p style="font-size:0.75rem;color:var(--muted);margin:2px 0;">${b.due_date ? 'Due: ' + esc(b.due_date) : ''}</p>
+          </div>
+          <div style="text-align:right;">
+            <span class="status-badge status-${b.status}" style="font-size:0.68rem;">${b.status.replace(/_/g,' ')}</span>
+            ${b.fine > 0 ? `<p style="color:#ef4444;font-size:0.75rem;margin:3px 0;">&#8377;${b.fine} fine</p>` : ''}
+          </div>
+        </div>`).join('')
+    : '<p style="color:var(--muted);font-size:0.855rem;padding:8px 0;">No active borrows</p>';
+
+  document.getElementById('cardModalBody').innerHTML = `
+    <div class="modal-user-info">
+      ${u.profile_image_url
+        ? `<img src="${esc(u.profile_image_url)}" class="modal-avatar" onerror="this.style.display='none'">`
+        : '<div class="modal-avatar-ph"><i class="fa-solid fa-user"></i></div>'}
+      <div>
+        <h3>${esc(u.name || '—')}</h3>
+        <p>${esc(u.email || '—')}</p>
+        <p>
+          <strong>${u.user_type === 'student' ? esc(u.year || '') + ' Year Student' : 'Teacher'}</strong>
+          ${u.trade ? ' &middot; ' + esc(u.trade) : ''}
+          ${u.reg_number ? ' &middot; ' + esc(u.reg_number) : ''}
+        </p>
+      </div>
+    </div>
+    <div style="margin-top:14px;">
+      <p style="font-size:0.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">
+        <strong>Active Borrows (${d.borrow_count || 0})</strong>
+      </p>
+      ${bookRows}
+    </div>`;
+  document.getElementById('cardModal').style.display = 'flex';
+}
+
+async function confirmIssue() {
+  const btn = document.getElementById('confirmIssueBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
+  try {
+    const r = await fetch('/admin/confirm-issue', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ borrow_id: currentBorrowId })
+    });
+    const data = await r.json();
+    closeModal('issueModal');
+    if (data.success) {
+      document.getElementById('resultPanel').style.display = 'block';
+      document.getElementById('resultContent').innerHTML =
+        `<div class="result-success">
+           <i class="fa-solid fa-circle-check"></i>
+           <h3>Book Issued!</h3>
+           <p>Due date: <strong>${esc(data.due_date || '')}</strong></p>
+         </div>`;
+    } else {
+      showResultError(data.error || 'Error confirming issue.');
+    }
+  } catch(e) {
+    closeModal('issueModal');
+    showResultError('Network error during confirm. Please try again.');
+  }
+}
+
+async function confirmReturn() {
+  const btn = document.getElementById('confirmReturnBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing...';
+  try {
+    const r = await fetch('/admin/confirm-return', {
+      method: 'POST', credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ borrow_id: currentBorrowId })
+    });
+    const data = await r.json();
+    closeModal('returnModal');
+    if (data.success) {
+      document.getElementById('resultPanel').style.display = 'block';
+      document.getElementById('resultContent').innerHTML =
+        `<div class="result-success">
+           <i class="fa-solid fa-circle-check"></i>
+           <h3>Book Returned!</h3>
+           ${data.fine > 0
+             ? `<p class="text-danger">Fine collected: <strong>&#8377;${data.fine}</strong></p>`
+             : '<p class="text-success">No fine — returned on time!</p>'}
+         </div>`;
+    } else {
+      showResultError(data.error || 'Error confirming return.');
+    }
+  } catch(e) {
+    closeModal('returnModal');
+    showResultError('Network error during confirm. Please try again.');
+  }
+}
+
+function closeModal(id) {
+  document.getElementById(id).style.display = 'none';
+  if (id === 'issueModal') {
+    const b = document.getElementById('confirmIssueBtn');
+    b.disabled = false; b.innerHTML = '<i class="fa-solid fa-check"></i> Confirm Issue';
+  } else if (id === 'returnModal') {
+    const b = document.getElementById('confirmReturnBtn');
+    b.disabled = false; b.innerHTML = '<i class="fa-solid fa-check"></i> Confirm Return';
+  }
+}
+
+function esc(str) {
+  return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+{% endblock %}

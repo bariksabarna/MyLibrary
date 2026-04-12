@@ -1,0 +1,707 @@
+{% extends 'base.html' %}
+{% block title %}Helpdesk - MyLibrary{% endblock %}
+{% block content %}
+<div class="page-container">
+  <div class="page-header">
+    <h1><i class="fa-solid fa-headset"></i> Smart Helpdesk</h1>
+    <p>Step-by-step help — choose a topic and follow the guide</p>
+  </div>
+
+  <div class="helpdesk-wrapper">
+
+    <!-- ── Left Panel: Topic Tree ── -->
+    <div class="quick-options glass-card">
+      <h3><i class="fa-solid fa-sitemap"></i> Topics</h3>
+      <div class="tree-panel" id="treePanel">
+        <button class="tree-root-btn" onclick="startTopic('borrow')" id="btn-borrow">
+          <i class="fa-solid fa-book"></i> Borrowing
+        </button>
+        <button class="tree-root-btn" onclick="startTopic('return')" id="btn-return">
+          <i class="fa-solid fa-rotate-left"></i> Returning
+        </button>
+        <button class="tree-root-btn" onclick="startTopic('fines')" id="btn-fines">
+          <i class="fa-solid fa-coins"></i> Fines &amp; Dues
+        </button>
+        <button class="tree-root-btn" onclick="startTopic('account')" id="btn-account">
+          <i class="fa-solid fa-user-circle"></i> My Account
+        </button>
+        <button class="tree-root-btn" onclick="startTopic('queue')" id="btn-queue">
+          <i class="fa-solid fa-list-ol"></i> Queue System
+        </button>
+        <button class="tree-root-btn" onclick="startTopic('hours')" id="btn-hours">
+          <i class="fa-regular fa-clock"></i> Hours &amp; Rules
+        </button>
+        <button class="tree-root-btn" onclick="startTopic('card')" id="btn-card">
+          <i class="fa-solid fa-id-card"></i> Library Card
+        </button>
+        <button class="tree-root-btn" onclick="startTopic('contact')" id="btn-contact">
+          <i class="fa-solid fa-envelope"></i> Contact Us
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Right Panel: Chat ── -->
+    <div class="chat-wrapper glass-card">
+
+      <!-- Header -->
+      <div class="chat-header">
+        <div class="chat-avatar"><i class="fa-solid fa-robot"></i></div>
+        <div>
+          <h3>Library Assistant</h3>
+          <p class="text-sm text-muted online"><i class="fa-solid fa-circle"></i> Online &mdash; Guided Mode</p>
+        </div>
+        <button class="chat-nav-btn" onclick="resetAll()" style="margin-left:auto;">
+          <i class="fa-solid fa-arrow-rotate-left"></i> Reset
+        </button>
+      </div>
+
+      <!-- Breadcrumb -->
+      <div class="breadcrumb-trail" id="breadcrumb"></div>
+
+      <!-- Messages -->
+      <div class="chat-messages" id="chatMessages">
+        <div class="msg bot">
+          <div class="msg-bubble">
+            <i class="fa-solid fa-robot"></i>
+            <div>
+              <p>👋 Hello! I'm your <strong>MyLibrary Assistant</strong>.</p>
+              <p style="margin-top:6px;">Choose a <strong>topic</strong> from the left panel, or type a question below,
+                to get step-by-step help.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Typing indicator -->
+      <div class="chat-typing" id="typingIndicator" style="display:none;">
+        <div class="msg-bubble typing">
+          <i class="fa-solid fa-robot"></i>
+          <span><span class="dot"></span><span class="dot"></span><span class="dot"></span></span>
+        </div>
+      </div>
+
+      <!-- Text Input -->
+      <div class="chat-input">
+        <input type="text" id="chatInput" placeholder="Or type your question here…"
+          onkeydown="if(event.key==='Enter') handleTextInput()">
+        <button onclick="handleTextInput()" class="chat-send"><i class="fa-solid fa-paper-plane"></i></button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ═══════════════════════════════════════════════════════════
+     DECISION TREE DATA
+     Each node: { text, choices[], answer }
+     choices[]: { label, icon, next (node key) }
+     answer: string/HTML rendered in an answer-card (leaf node)
+  ═══════════════════════════════════════════════════════════ */
+  const TREE = {
+
+    /* ── BORROW ── */
+    borrow: {
+      text: "I'll help you with <strong>Borrowing</strong>. What would you like to know?",
+      icon: 'fa-book',
+      choices: [
+        { label: 'How to borrow a book', icon: 'fa-circle-question', next: 'borrow_how' },
+        { label: 'How many books can I borrow?', icon: 'fa-layer-group', next: 'borrow_limit' },
+        { label: 'Borrow period / due date', icon: 'fa-calendar', next: 'borrow_period' },
+        { label: 'Book not available (queued)', icon: 'fa-hourglass-half', next: 'borrow_queue' },
+      ]
+    },
+    borrow_how: {
+      text: "Here's how to borrow a book:",
+      answer: `
+      <ul>
+        <li>1️⃣ Browse or search for a book on the <strong>Books</strong> page.</li>
+        <li>2️⃣ Click <strong>"Borrow"</strong> on the book detail page.</li>
+        <li>3️⃣ A <strong>QR code</strong> is generated — show it at the library counter.</li>
+        <li>4️⃣ Staff scans the QR to issue the book to your account.</li>
+      </ul>`,
+      choices: [
+        { label: 'What is the borrow limit?', icon: 'fa-layer-group', next: 'borrow_limit' },
+        { label: 'How long can I keep a book?', icon: 'fa-calendar', next: 'borrow_period' },
+      ]
+    },
+    borrow_limit: {
+      text: "About borrow limits:",
+      answer: `
+      <ul>
+        <li>Students may borrow up to <strong>3 books</strong> at a time.</li>
+        <li>Faculty members may borrow up to <strong>5 books</strong> at a time.</li>
+        <li>This limit resets once you return a book.</li>
+      </ul>`,
+      choices: [
+        { label: 'How long can I keep the book?', icon: 'fa-calendar', next: 'borrow_period' },
+        { label: 'Back to Borrowing menu', icon: 'fa-arrow-left', next: 'borrow' },
+      ]
+    },
+    borrow_period: {
+      text: "Borrow period details:",
+      answer: `
+      <ul>
+        <li>Standard borrow period: <strong>14 days</strong>.</li>
+        <li>You will receive an <strong>email reminder</strong> 2 days before due date.</li>
+        <li>After due date, a fine of <strong>₹2 per day</strong> is charged.</li>
+        <li>Renewals are not currently supported — please return and re-borrow.</li>
+      </ul>`,
+      choices: [
+        { label: 'What are the late fines?', icon: 'fa-coins', next: 'fines_late' },
+        { label: 'Back to Borrowing menu', icon: 'fa-arrow-left', next: 'borrow' },
+      ]
+    },
+    borrow_queue: {
+      text: "About the queue system when a book is unavailable:",
+      answer: `
+      <ul>
+        <li>Click <strong>"Join Queue"</strong> on any unavailable book.</li>
+        <li>You'll be added to an automatic <strong>waiting list</strong>.</li>
+        <li>When the book is returned, the <strong>next person</strong> in queue gets notified.</li>
+        <li>You then have <strong>48 hours</strong> to collect the book.</li>
+      </ul>`,
+      choices: [
+        { label: 'More about Queue System', icon: 'fa-list-ol', next: 'queue' },
+        { label: 'Back to Borrowing menu', icon: 'fa-arrow-left', next: 'borrow' },
+      ]
+    },
+
+    /* ── RETURN ── */
+    return: {
+      text: "I'll help you with <strong>Returning</strong> a book. What do you need?",
+      icon: 'fa-rotate-left',
+      choices: [
+        { label: 'How to return a book', icon: 'fa-circle-question', next: 'return_how' },
+        { label: 'What if I return it late?', icon: 'fa-triangle-exclamation', next: 'fines_late' },
+        { label: 'Lost or damaged book', icon: 'fa-book-skull', next: 'return_lost' },
+      ]
+    },
+    return_how: {
+      text: "How to return a book step-by-step:",
+      answer: `
+      <ul>
+        <li>1️⃣ Go to <strong>My Borrows</strong> in the navigation menu.</li>
+        <li>2️⃣ Find the book you wish to return and click <strong>"Return"</strong>.</li>
+        <li>3️⃣ A <strong>QR code</strong> will be generated.</li>
+        <li>4️⃣ Bring the physical book and show the QR at the <strong>library counter</strong>.</li>
+        <li>5️⃣ Staff scans the QR — your account is updated automatically.</li>
+      </ul>`,
+      choices: [
+        { label: 'What if I return late?', icon: 'fa-triangle-exclamation', next: 'fines_late' },
+        { label: 'I lost the book', icon: 'fa-book-skull', next: 'return_lost' },
+      ]
+    },
+    return_lost: {
+      text: "Lost or damaged book policy:",
+      answer: `
+      <ul>
+        <li>Report immediately to library staff or email <strong>library@mylibrary.edu</strong>.</li>
+        <li>You will be charged the <strong>replacement cost</strong> of the book.</li>
+        <li>Damaged books are assessed individually by the librarian.</li>
+        <li>Until resolved, borrowing privileges may be <strong>suspended</strong>.</li>
+      </ul>`,
+      choices: [
+        { label: 'Contact Us for help', icon: 'fa-envelope', next: 'contact' },
+        { label: 'Back to Return menu', icon: 'fa-arrow-left', next: 'return' },
+      ]
+    },
+
+    /* ── FINES ── */
+    fines: {
+      text: "Let me help with <strong>Fines &amp; Dues</strong>. What would you like to know?",
+      icon: 'fa-coins',
+      choices: [
+        { label: 'Late return fine', icon: 'fa-clock', next: 'fines_late' },
+        { label: 'How to pay fines', icon: 'fa-credit-card', next: 'fines_pay' },
+        { label: 'Fine waiver / appeal', icon: 'fa-hand-holding-heart', next: 'fines_waiver' },
+        { label: 'Check my dues', icon: 'fa-magnifying-glass', next: 'fines_check' },
+      ]
+    },
+    fines_late: {
+      text: "Late return fine policy:",
+      answer: `
+      <ul>
+        <li>Fine rate: <strong>₹2 per day</strong> after the due date.</li>
+        <li>Fines are calculated automatically starting midnight on the due date.</li>
+        <li>Maximum fine cap: <strong>₹100 per book</strong>.</li>
+        <li>You <strong>cannot borrow new books</strong> while fines are outstanding.</li>
+      </ul>`,
+      choices: [
+        { label: 'How do I pay fines?', icon: 'fa-credit-card', next: 'fines_pay' },
+        { label: 'Can I get a waiver?', icon: 'fa-hand-holding-heart', next: 'fines_waiver' },
+      ]
+    },
+    fines_pay: {
+      text: "How to pay fines:",
+      answer: `
+      <ul>
+        <li>Visit the library counter with your <strong>Library Card QR</strong>.</li>
+        <li>Staff will confirm the outstanding amount and accept <strong>cash or UPI</strong> payment.</li>
+        <li>After payment, your borrowing privileges are restored immediately.</li>
+        <li>A receipt will be emailed to your registered email address.</li>
+      </ul>`,
+      choices: [
+        { label: 'Can fines be waived?', icon: 'fa-hand-holding-heart', next: 'fines_waiver' },
+        { label: 'Back to Fines menu', icon: 'fa-arrow-left', next: 'fines' },
+      ]
+    },
+    fines_waiver: {
+      text: "Fine waiver / appeal process:",
+      answer: `
+      <ul>
+        <li>Waivers are granted at the <strong>librarian's discretion</strong>.</li>
+        <li>Valid reasons: medical emergency, system error, or natural calamity.</li>
+        <li>Submit a written request to <strong>library@mylibrary.edu</strong> with supporting documents.</li>
+        <li>Decision is usually communicated within <strong>3 working days</strong>.</li>
+      </ul>`,
+      choices: [
+        { label: 'Contact Us', icon: 'fa-envelope', next: 'contact' },
+        { label: 'Back to Fines menu', icon: 'fa-arrow-left', next: 'fines' },
+      ]
+    },
+    fines_check: {
+      text: "How to check your dues:",
+      answer: `
+      <ul>
+        <li>Go to <strong>My Borrows</strong> — each overdue book shows the accrued fine.</li>
+        <li>Your <strong>Library Card</strong> page also shows total outstanding dues.</li>
+        <li>Fines update at midnight automatically.</li>
+      </ul>`,
+      choices: [
+        { label: 'How do I pay?', icon: 'fa-credit-card', next: 'fines_pay' },
+        { label: 'Back to Fines menu', icon: 'fa-arrow-left', next: 'fines' },
+      ]
+    },
+
+    /* ── ACCOUNT ── */
+    account: {
+      text: "I can help with your <strong>Account</strong>. What do you need?",
+      icon: 'fa-user-circle',
+      choices: [
+        { label: 'Reset my password', icon: 'fa-lock', next: 'account_pwd' },
+        { label: 'Update profile / photo', icon: 'fa-pen-to-square', next: 'account_profile' },
+        { label: 'Account not approved yet', icon: 'fa-hourglass-half', next: 'account_pending' },
+        { label: 'Delete my account', icon: 'fa-trash', next: 'account_delete' },
+      ]
+    },
+    account_pwd: {
+      text: "How to reset your password:",
+      answer: `
+      <ul>
+        <li>Click <strong>"Forgot Password?"</strong> on the login page.</li>
+        <li>Enter your registered email address.</li>
+        <li>Check your inbox for an <strong>OTP</strong>.</li>
+        <li>Enter the OTP and set a <strong>new password</strong>.</li>
+        <li>If you don't receive an email, check spam or contact the library.</li>
+      </ul>`,
+      choices: [
+        { label: 'Contact Us for help', icon: 'fa-envelope', next: 'contact' },
+        { label: 'Back to Account menu', icon: 'fa-arrow-left', next: 'account' },
+      ]
+    },
+    account_profile: {
+      text: "How to update your profile:",
+      answer: `
+      <ul>
+        <li>Go to your <strong>Library Card</strong> page.</li>
+        <li>Click <strong>"Edit Profile"</strong> to update your name, department, or photo.</li>
+        <li>Profile photo can be uploaded (max 2 MB, JPG/PNG).</li>
+        <li>Changes are saved immediately upon submission.</li>
+      </ul>`,
+      choices: [
+        { label: 'Back to Account menu', icon: 'fa-arrow-left', next: 'account' },
+      ]
+    },
+    account_pending: {
+      text: "Account pending approval:",
+      answer: `
+      <ul>
+        <li>After registration, an admin must <strong>approve</strong> your account.</li>
+        <li>This usually takes <strong>1–2 working days</strong>.</li>
+        <li>You will receive an email once approved.</li>
+        <li>If waiting more than 2 days, contact the library with your registered email.</li>
+      </ul>`,
+      choices: [
+        { label: 'Contact Us', icon: 'fa-envelope', next: 'contact' },
+        { label: 'Back to Account menu', icon: 'fa-arrow-left', next: 'account' },
+      ]
+    },
+    account_delete: {
+      text: "Account deletion process:",
+      answer: `
+      <ul>
+        <li>Account deletion is handled by the library admin.</li>
+        <li>Email a request to <strong>library@mylibrary.edu</strong> from your registered email.</li>
+        <li>All borrowed books must be returned and fines cleared before deletion.</li>
+        <li>Processing takes up to <strong>5 working days</strong>.</li>
+      </ul>`,
+      choices: [
+        { label: 'Contact Us', icon: 'fa-envelope', next: 'contact' },
+        { label: 'Back to Account menu', icon: 'fa-arrow-left', next: 'account' },
+      ]
+    },
+
+    /* ── QUEUE ── */
+    queue: {
+      text: "All about the <strong>Queue System</strong>. What would you like to know?",
+      icon: 'fa-list-ol',
+      choices: [
+        { label: 'How does the queue work?', icon: 'fa-circle-question', next: 'queue_how' },
+        { label: 'My queue position', icon: 'fa-ranking-star', next: 'queue_pos' },
+        { label: 'Cancel my queue request', icon: 'fa-xmark-circle', next: 'queue_cancel' },
+      ]
+    },
+    queue_how: {
+      text: "How the queue system works:",
+      answer: `
+      <ul>
+        <li>When a book is unavailable, click <strong>"Join Queue"</strong>.</li>
+        <li>Requests are processed in <strong>first-come, first-served</strong> order.</li>
+        <li>When the book becomes available, the <strong>first person</strong> in queue is notified by email.</li>
+        <li>You have <strong>48 hours</strong> to collect; after that, your slot passes to the next person.</li>
+      </ul>`,
+      choices: [
+        { label: 'Check my queue position', icon: 'fa-ranking-star', next: 'queue_pos' },
+        { label: 'Cancel my queue request', icon: 'fa-xmark-circle', next: 'queue_cancel' },
+      ]
+    },
+    queue_pos: {
+      text: "How to check your queue position:",
+      answer: `
+      <ul>
+        <li>Go to <strong>My Borrows</strong> page.</li>
+        <li>Switch to the <strong>"In Queue"</strong> tab.</li>
+        <li>Your current position number is displayed for each queued book.</li>
+      </ul>`,
+      choices: [
+        { label: 'Cancel a queue request', icon: 'fa-xmark-circle', next: 'queue_cancel' },
+        { label: 'Back to Queue menu', icon: 'fa-arrow-left', next: 'queue' },
+      ]
+    },
+    queue_cancel: {
+      text: "How to cancel a queue request:",
+      answer: `
+      <ul>
+        <li>Go to <strong>My Borrows → In Queue</strong> tab.</li>
+        <li>Click <strong>"Cancel Queue"</strong> next to the book.</li>
+        <li>Your spot is removed and the list shifts up for everyone behind you.</li>
+        <li>You can re-join the queue anytime for the same book.</li>
+      </ul>`,
+      choices: [
+        { label: 'Back to Queue menu', icon: 'fa-arrow-left', next: 'queue' },
+      ]
+    },
+
+    /* ── HOURS & RULES ── */
+    hours: {
+      text: "Information about <strong>Library Hours &amp; Rules</strong>:",
+      icon: 'fa-clock',
+      choices: [
+        { label: 'Opening hours', icon: 'fa-clock', next: 'hours_open' },
+        { label: 'Library rules', icon: 'fa-scale-balanced', next: 'hours_rules' },
+        { label: 'Holidays / closures', icon: 'fa-calendar-xmark', next: 'hours_holidays' },
+      ]
+    },
+    hours_open: {
+      text: "Library opening hours:",
+      answer: `
+      <ul>
+        <li>🕗 <strong>Monday – Friday:</strong> 8:00 AM – 8:00 PM</li>
+        <li>🕗 <strong>Saturday:</strong> 9:00 AM – 5:00 PM</li>
+        <li>🔴 <strong>Sunday &amp; Public Holidays:</strong> Closed</li>
+        <li>Online borrowing/queuing is available <strong>24/7</strong> via this portal.</li>
+      </ul>`,
+      choices: [
+        { label: 'Library rules', icon: 'fa-scale-balanced', next: 'hours_rules' },
+        { label: 'Holiday schedule', icon: 'fa-calendar-xmark', next: 'hours_holidays' },
+      ]
+    },
+    hours_rules: {
+      text: "General library rules:",
+      answer: `
+      <ul>
+        <li>📵 Maintain <strong>silence</strong> in reading areas.</li>
+        <li>🍔 No food or drinks inside the library.</li>
+        <li>🪪 Always carry your <strong>Library Card</strong> when visiting.</li>
+        <li>📚 Handle books with care — do not write in or fold pages.</li>
+        <li>🔁 Return books on time to avoid fines.</li>
+        <li>📱 Phones must be on <strong>silent mode</strong>.</li>
+      </ul>`,
+      choices: [
+        { label: 'Opening hours', icon: 'fa-clock', next: 'hours_open' },
+        { label: 'Holiday schedule', icon: 'fa-calendar-xmark', next: 'hours_holidays' },
+      ]
+    },
+    hours_holidays: {
+      text: "Holiday / closure information:",
+      answer: `
+      <ul>
+        <li>The library follows the <strong>institute's official holiday calendar</strong>.</li>
+        <li>Special closure notices are posted at the library entrance and emailed to all members.</li>
+        <li>During exams, reading rooms may have <strong>extended hours</strong>.</li>
+        <li>Check the library notice board or contact staff for the latest schedule.</li>
+      </ul>`,
+      choices: [
+        { label: 'Contact Us', icon: 'fa-envelope', next: 'contact' },
+        { label: 'Opening hours', icon: 'fa-clock', next: 'hours_open' },
+      ]
+    },
+
+    /* ── LIBRARY CARD ── */
+    card: {
+      text: "Questions about your <strong>Library Card</strong>:",
+      icon: 'fa-id-card',
+      choices: [
+        { label: 'What is the library card for?', icon: 'fa-circle-question', next: 'card_what' },
+        { label: 'Lost or damaged card', icon: 'fa-triangle-exclamation', next: 'card_lost' },
+        { label: 'View my card / QR code', icon: 'fa-qrcode', next: 'card_view' },
+      ]
+    },
+    card_what: {
+      text: "What is the Library Card used for?",
+      answer: `
+      <ul>
+        <li>Your <strong>Library Card</strong> is your digital identity for the library.</li>
+        <li>It contains a <strong>QR code</strong> that staff scan during borrowing and returning.</li>
+        <li>It displays your borrow history, active books, and outstanding fines.</li>
+        <li>Always show it when entering the library or collecting books.</li>
+      </ul>`,
+      choices: [
+        { label: 'View my card', icon: 'fa-qrcode', next: 'card_view' },
+        { label: 'Back to Card menu', icon: 'fa-arrow-left', next: 'card' },
+      ]
+    },
+    card_view: {
+      text: "How to view your Library Card:",
+      answer: `
+      <ul>
+        <li>Click <strong>"My Card"</strong> in the top navigation bar.</li>
+        <li>Your card with QR code is displayed — you can also <strong>download it as PDF</strong>.</li>
+        <li>The QR code is unique and tied to your account.</li>
+      </ul>`,
+      choices: [
+        { label: 'Back to Card menu', icon: 'fa-arrow-left', next: 'card' },
+      ]
+    },
+    card_lost: {
+      text: "Lost or damaged Library Card:",
+      answer: `
+      <ul>
+        <li>Your card is <strong>digital</strong> — it cannot be truly lost as long as you have account access.</li>
+        <li>Simply log in and navigate to <strong>My Card</strong> to access it at any time.</li>
+        <li>If account access is lost, contact the library to verify your identity and restore access.</li>
+      </ul>`,
+      choices: [
+        { label: 'Reset my password', icon: 'fa-lock', next: 'account_pwd' },
+        { label: 'Contact Us', icon: 'fa-envelope', next: 'contact' },
+      ]
+    },
+
+    /* ── CONTACT ── */
+    contact: {
+      text: "Contact the library through these channels:",
+      icon: 'fa-envelope',
+      answer: `
+      <ul>
+        <li>📧 <strong>Email:</strong> mylibrary@gmail.com</li>
+        <li>📞 <strong>Phone:</strong> +91 984563210 (Mon–Sat, 9 AM–5 PM)</li>
+        <li>📍 <strong>In Person:</strong> Ground Floor, Main Academic Block</li>
+        <li>⏱️ Emails are typically responded to within <strong>24 hours</strong>.</li>
+      </ul>`,
+      choices: []
+    }
+  };
+
+  /* ═══════════════════════════════════════════════════════════
+     STATE & HELPERS
+  ═══════════════════════════════════════════════════════════ */
+  let breadcrumb = [];
+  let activeTopic = null;
+
+  function resetAll() {
+    breadcrumb = [];
+    activeTopic = null;
+    document.getElementById('breadcrumb').innerHTML = '';
+    document.querySelectorAll('.tree-root-btn').forEach(b => b.classList.remove('active-topic'));
+    const msgs = document.getElementById('chatMessages');
+    msgs.innerHTML = `
+    <div class="msg bot">
+      <div class="msg-bubble">
+        <i class="fa-solid fa-robot"></i>
+        <div>
+          <p>🔄 Conversation reset. Choose a <strong>topic</strong> from the left panel to get started.</p>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function updateBreadcrumb() {
+    const bc = document.getElementById('breadcrumb');
+    if (!breadcrumb.length) { bc.innerHTML = ''; return; }
+    bc.innerHTML = breadcrumb.map((b, i) => {
+      const sep = i < breadcrumb.length - 1 ? `<span class="bc-sep">›</span>` : '';
+      return `<span><i class="fa-solid fa-${b.icon}" style="color:rgba(129,140,248,0.7);font-size:0.65rem;"></i> ${b.label}</span>${sep}`;
+    }).join('');
+  }
+
+  function typeThenRender(renderFn, delay = 700) {
+    const ti = document.getElementById('typingIndicator');
+    ti.style.display = 'flex';
+    scrollBottom();
+    setTimeout(() => {
+      ti.style.display = 'none';
+      renderFn();
+      scrollBottom();
+    }, delay);
+  }
+
+  function scrollBottom() {
+    const el = document.getElementById('chatMessages');
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function appendUserMsg(text) {
+    const msgs = document.getElementById('chatMessages');
+    const d = document.createElement('div');
+    d.className = 'msg user';
+    d.innerHTML = `<div class="msg-bubble"><p>${escHtml(text)}</p></div>`;
+    msgs.appendChild(d);
+    scrollBottom();
+  }
+
+  function appendBotMsg(html, choices = []) {
+    const msgs = document.getElementById('chatMessages');
+    const d = document.createElement('div');
+    d.className = 'msg bot';
+
+    let choicesHtml = '';
+    if (choices && choices.length) {
+      choicesHtml = `<div class="dt-choices">` +
+        choices.map(c =>
+          `<button class="dt-choice-btn" onclick="pickChoice('${c.next}', '${escHtml(c.label)}')">
+          <i class="fa-solid ${c.icon}"></i> ${c.label}
+         </button>`
+        ).join('') + `</div>`;
+    }
+
+    d.innerHTML = `<div class="msg-bubble"><i class="fa-solid fa-robot"></i><div>${html}${choicesHtml}</div></div>`;
+    msgs.appendChild(d);
+    scrollBottom();
+  }
+
+  function renderNode(key) {
+    const node = TREE[key];
+    if (!node) {
+      appendBotMsg(`<p>Sorry, I don't have information on that yet. Please <button class="dt-choice-btn" onclick="pickChoice('contact','Contact Us')"><i class="fa-solid fa-envelope"></i> Contact Us</button></p>`);
+      return;
+    }
+
+    let html = `<p>${node.text}</p>`;
+    if (node.answer) {
+      html += `<div class="answer-card">${node.answer}</div>`;
+    }
+
+    const choices = node.choices || [];
+    appendBotMsg(html, choices);
+  }
+
+  function startTopic(key) {
+    const node = TREE[key];
+    if (!node) return;
+
+    activeTopic = key;
+    document.querySelectorAll('.tree-root-btn').forEach(b => b.classList.remove('active-topic'));
+    const btn = document.getElementById('btn-' + key);
+    if (btn) btn.classList.add('active-topic');
+
+    breadcrumb = [{ label: capFirst(key), icon: node.icon || 'fa-circle-dot' }];
+    updateBreadcrumb();
+
+    appendUserMsg('🗂️ ' + btn ? btn.textContent.trim() : key);
+
+    typeThenRender(() => renderNode(key));
+  }
+
+  function pickChoice(key, label) {
+    const node = TREE[key];
+    appendUserMsg(label);
+
+    const icon = node ? (node.icon || 'fa-chevron-right') : 'fa-chevron-right';
+    breadcrumb.push({ label, icon });
+    updateBreadcrumb();
+
+    typeThenRender(() => renderNode(key));
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function capFirst(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+  /* ── Keyword fallback for typed input ── */
+  function handleTextInput() {
+    const inp = document.getElementById('chatInput');
+    const raw = inp.value.trim();
+    if (!raw) return;
+    inp.value = '';
+    appendUserMsg(raw);
+
+    const q = raw.toLowerCase();
+    let matchKey = null;
+
+    const keywords = {
+      borrow: ['borrow', 'issue', 'take', 'checkout', 'get book', 'lend'],
+      return: ['return', 'give back', 'submit'],
+      fines: ['fine', 'due', 'late', 'penalty', 'charge', 'fee', 'money'],
+      account: ['password', 'login', 'profile', 'account', 'register', 'signup', 'photo', 'pending', 'approve'],
+      queue: ['queue', 'waiting', 'wait', 'waitlist', 'hold'],
+      hours: ['hour', 'open', 'close', 'time', 'when', 'holiday', 'rule', 'rule'],
+      card: ['card', 'qr', 'identity', 'id'],
+      contact: ['contact', 'email', 'phone', 'staff', 'help', 'address'],
+    };
+
+    for (const [key, words] of Object.entries(keywords)) {
+      if (words.some(w => q.includes(w))) { matchKey = key; break; }
+    }
+
+    typeThenRender(() => {
+      if (matchKey) {
+        const node = TREE[matchKey];
+        breadcrumb = [{ label: capFirst(matchKey), icon: node.icon || 'fa-circle-dot' }];
+        updateBreadcrumb();
+        renderNode(matchKey);
+      } else {
+        appendBotMsg(
+          `<p>I'm not sure I understood that. Please choose a topic from the left panel, or tap a button below:</p>`,
+          [
+            { label: 'Borrowing', icon: 'fa-book', next: 'borrow' },
+            { label: 'Returning', icon: 'fa-rotate-left', next: 'return' },
+            { label: 'Fines & Dues', icon: 'fa-coins', next: 'fines' },
+            { label: 'Contact Us', icon: 'fa-envelope', next: 'contact' },
+          ]
+        );
+      }
+    }, 500);
+  }
+
+  /* Mark correct topic btn on startTopic call */
+  (function patchStartTopic() {
+    const origStart = startTopic;
+    window.startTopic = function (key) {
+      const node = TREE[key];
+      if (!node) return;
+      activeTopic = key;
+      document.querySelectorAll('.tree-root-btn').forEach(b => b.classList.remove('active-topic'));
+      const btn = document.getElementById('btn-' + key);
+      if (btn) btn.classList.add('active-topic');
+      breadcrumb = [{ label: btn ? btn.innerText.trim() : capFirst(key), icon: node.icon || 'fa-circle-dot' }];
+      updateBreadcrumb();
+      const label = btn ? btn.innerText.trim() : capFirst(key);
+      appendUserMsg('🗂️ ' + label);
+      typeThenRender(() => renderNode(key));
+    };
+  })();
+</script>
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends 'base_auth.html' %}
+{% block title %}Verify OTP - MyLibrary{% endblock %}
+{% block content %}
+<div class="auth-card">
+  <div class="auth-card-header">
+    <div class="otp-icon"><i class="fa-solid fa-shield-halved"></i></div>
+    <h2>Verify OTP</h2>
+    <p>Enter the 6-digit code sent to <strong>{{ email }}</strong></p>
+  </div>
+  <form method="POST" class="auth-form">
+    <div class="otp-inputs">
+      <input type="text" maxlength="1" class="otp-box" oninput="otpNext(this,0)" onkeydown="otpBack(event,this,0)">
+      <input type="text" maxlength="1" class="otp-box" oninput="otpNext(this,1)" onkeydown="otpBack(event,this,1)">
+      <input type="text" maxlength="1" class="otp-box" oninput="otpNext(this,2)" onkeydown="otpBack(event,this,2)">
+      <input type="text" maxlength="1" class="otp-box" oninput="otpNext(this,3)" onkeydown="otpBack(event,this,3)">
+      <input type="text" maxlength="1" class="otp-box" oninput="otpNext(this,4)" onkeydown="otpBack(event,this,4)">
+      <input type="text" maxlength="1" class="otp-box" oninput="otpNext(this,5)" onkeydown="otpBack(event,this,5)">
+      <input type="hidden" name="otp" id="otpHidden">
+    </div>
+    <div class="otp-timer"><i class="fa-regular fa-clock"></i> Expires in <span id="otpCountdown">10:00</span></div>
+    <button type="submit" class="btn-auth" onclick="collectOtp()"><i class="fa-solid fa-check-circle"></i> Verify Code</button>
+  </form>
+  <div class="auth-footer">
+    <p>Didn't get the code? <a href="{{ url_for('register') if purpose == 'register' else url_for('forgot_password') }}">Resend</a></p>
+  </div>
+</div>
+<script>
+const boxes = document.querySelectorAll('.otp-box');
+function otpNext(el, i) { if (el.value && i < 5) boxes[i+1].focus(); }
+function otpBack(e, el, i) { if (e.key === 'Backspace' && !el.value && i > 0) boxes[i-1].focus(); }
+function collectOtp() { document.getElementById('otpHidden').value = [...boxes].map(b=>b.value).join(''); }
+let t = 600;
+const cd = setInterval(() => { if (t<=0){clearInterval(cd);document.getElementById('otpCountdown').textContent='Expired';return;} const m=Math.floor(t/60),s=t%60; document.getElementById('otpCountdown').textContent=m+':'+(s<10?'0':'')+s; t--; }, 1000);
+</script>
+{% endblock %}

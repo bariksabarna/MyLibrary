@@ -1,0 +1,171 @@
+{% extends 'base.html' %}
+{% block title %}Books — MyLibrary{% endblock %}
+{% block content %}
+<div class="page-container">
+  <div class="page-header">
+    <h1><i class="fa-solid fa-book-open"></i> Library Collection</h1>
+    <p>{{ total }} books available</p>
+  </div>
+
+  <!-- Search -->
+  <div class="glass-card search-wrapper">
+    <form method="GET" action="{{ url_for('books') }}" id="searchForm">
+      <div class="search-bar">
+        <div class="search-input-wrap">
+          <i class="fa-solid fa-search"></i>
+          <input type="text" name="q" id="searchInput" placeholder="Search by title, author, trade..." value="{{ search }}" autocomplete="off">
+          <button type="button" class="voice-btn" id="voiceBtn" title="Voice Search"><i class="fa-solid fa-microphone"></i></button>
+          <button type="submit" class="search-btn"><i class="fa-solid fa-search"></i> Search</button>
+        </div>
+        <div id="searchSuggestions" class="search-suggestions"></div>
+      </div>
+      <div class="filter-row">
+        <input type="text" name="trade" placeholder="Filter by trade..." value="{{ trade }}">
+        <select name="semester" onchange="this.form.submit()">
+          <option value="">All Semesters</option>
+          {% for s in ['1','2','3','4','5','6'] %}
+          <option value="{{ s }}" {% if semester==s %}selected{% endif %}>Semester {{ s }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="btn-sm btn-primary">Apply</button>
+        {% if search or trade or semester %}
+        <a href="{{ url_for('books') }}" class="btn-sm btn-outline">Clear <i class="fa-solid fa-xmark"></i></a>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+
+  <!-- Voice Status -->
+  <div id="voiceStatus" class="voice-status" style="display:none;">
+    <i class="fa-solid fa-microphone-lines fa-beat"></i>
+    <span id="voiceText">Listening...</span>
+  </div>
+
+  {% if books %}
+  <!-- Amazon/Flipkart-style Product Card Grid -->
+  <div class="product-grid">
+    {% for book in books %}
+    <a href="{{ url_for('book_detail', book_id=book.id) }}" class="product-card">
+      <!-- Cover Image -->
+      <div class="product-img-wrap">
+        {% if book.get('cover_url') %}
+          <img src="{{ book.cover_url }}" alt="{{ book.title }}" loading="lazy">
+        {% else %}
+          <div class="product-img-ph">
+            <i class="fa-solid fa-book"></i>
+            <span>{{ book.title[:2].upper() }}</span>
+          </div>
+        {% endif %}
+        <!-- Availability badge top-left -->
+        <div class="product-avail-badge {% if book.available_quantity > 0 %}in-stock{% else %}out-stock{% endif %}">
+          {% if book.available_quantity > 0 %}
+            <i class="fa-solid fa-circle-check"></i> In Stock
+          {% else %}
+            <i class="fa-solid fa-clock"></i> Queue
+          {% endif %}
+        </div>
+        <!-- Qty indicator top-right -->
+        <div class="product-qty-tag">{{ book.available_quantity }}/{{ book.total_quantity }}</div>
+      </div>
+
+      <!-- Product Info -->
+      <div class="product-info">
+        <h3 class="product-title" title="{{ book.title }}">{{ book.title }}</h3>
+        <p class="product-author"><i class="fa-solid fa-user-pen"></i> {{ book.author or 'Unknown Author' }}</p>
+
+        <div class="product-tags">
+          {% if book.trade %}<span class="ptag ptag-trade">{{ book.trade }}</span>{% endif %}
+          {% if book.semester %}<span class="ptag ptag-sem">Sem {{ book.semester }}</span>{% endif %}
+        </div>
+
+        <!-- Availability Info -->
+        <div class="product-rating" style="gap: 6px; padding-top: 4px;">
+          <span class="rating-count" style="font-weight: 700; color: #a5b4fc;">
+            <i class="fa-solid fa-layer-group"></i> {{ book.available_quantity }} available
+          </span>
+          <span style="font-size: 0.75rem; color: var(--text-muted);">
+            (of {{ book.total_quantity }} total)
+          </span>
+        </div>
+
+        <!-- Price-style borrow info -->
+        <div class="product-borrow-info">
+          <span class="borrow-free">Free to Borrow</span>
+          <span class="borrow-days"><i class="fa-regular fa-clock"></i> 30-day loan</span>
+        </div>
+
+        <div class="product-fine">
+          <i class="fa-solid fa-info-circle"></i> ₹5/day after due date
+        </div>
+
+        <!-- CTA Button -->
+        <button class="product-cta {% if book.available_quantity > 0 %}cta-borrow{% else %}cta-queue{% endif %}">
+          {% if book.available_quantity > 0 %}
+            <i class="fa-solid fa-hand-holding-heart"></i> Borrow Now
+          {% else %}
+            <i class="fa-solid fa-list-ol"></i> Join Queue
+          {% endif %}
+        </button>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+
+  <!-- Pagination -->
+  {% if total_pages > 1 %}
+  <div class="pagination">
+    {% if page > 1 %}<a href="{{ url_for('books', page=page-1, q=search, trade=trade, semester=semester) }}" class="page-btn"><i class="fa-solid fa-chevron-left"></i></a>{% endif %}
+    {% for p in range(1, total_pages+1) %}
+      {% if p == page %}<span class="page-btn active">{{ p }}</span>
+      {% elif p == 1 or p == total_pages or (p >= page-2 and p <= page+2) %}<a href="{{ url_for('books', page=p, q=search, trade=trade, semester=semester) }}" class="page-btn">{{ p }}</a>
+      {% elif p == page-3 or p == page+3 %}<span class="page-dots">…</span>{% endif %}
+    {% endfor %}
+    {% if page < total_pages %}<a href="{{ url_for('books', page=page+1, q=search, trade=trade, semester=semester) }}" class="page-btn"><i class="fa-solid fa-chevron-right"></i></a>{% endif %}
+  </div>
+  {% endif %}
+
+  {% else %}
+  <div class="empty-state glass-card">
+    <i class="fa-solid fa-book-open"></i>
+    <h3>No books found</h3>
+    <p>Try adjusting your search or filters.</p>
+    <a href="{{ url_for('books') }}" class="btn-primary">Clear Filters</a>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+// Voice Search
+const voiceBtn = document.getElementById('voiceBtn');
+const searchInput = document.getElementById('searchInput');
+if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const recog = new SR(); recog.lang='en-IN'; recog.interimResults=true;
+  recog.onstart = () => { document.getElementById('voiceStatus').style.display='flex'; voiceBtn.classList.add('active'); };
+  recog.onresult = e => {
+    const t = Array.from(e.results).map(r=>r[0].transcript).join('');
+    searchInput.value = t; document.getElementById('voiceText').textContent = t;
+    if (e.results[e.results.length-1].isFinal) { document.getElementById('voiceStatus').style.display='none'; voiceBtn.classList.remove('active'); document.getElementById('searchForm').submit(); }
+  };
+  recog.onerror = recog.onend = () => { document.getElementById('voiceStatus').style.display='none'; voiceBtn.classList.remove('active'); };
+  voiceBtn.addEventListener('click', () => recog.start());
+} else { voiceBtn.style.display='none'; }
+
+// Search Suggestions
+let timer;
+searchInput.addEventListener('input', function() {
+  clearTimeout(timer);
+  const q = this.value.trim();
+  if (q.length < 2) { document.getElementById('searchSuggestions').innerHTML=''; return; }
+  timer = setTimeout(() => {
+    fetch(`/api/search-suggestions?q=${encodeURIComponent(q)}`).then(r=>r.json()).then(data => {
+      const el = document.getElementById('searchSuggestions');
+      if (!data.length) { el.innerHTML=''; return; }
+      el.innerHTML = data.map(b=>`<div class="suggestion" onclick="document.getElementById('searchInput').value='${b.title.replace(/'/g,"\\'")}';document.getElementById('searchForm').submit()">
+        <i class="fa-solid fa-book"></i><span>${b.title}</span><small>${b.author}</small></div>`).join('');
+    });
+  }, 300);
+});
+document.addEventListener('click', e => { if(!e.target.closest('.search-bar')) document.getElementById('searchSuggestions').innerHTML=''; });
+</script>
+{% endblock %}

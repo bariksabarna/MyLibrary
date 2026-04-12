@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}My Library{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Raleway:wght@300;400;500;600;700;800&family=Nunito:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+{% block extra_head %}{% endblock %}
+</head>
+<body class="has-bg">
+<div class="bg-overlay"></div>
+
+<!-- Navbar -->
+<nav class="glass-nav">
+  <div class="nav-container">
+    <a href="{{ url_for('home') }}" class="nav-brand">
+      <i class="fa-solid fa-book-open"></i>
+      <span>MyLibrary</span>
+    </a>
+    <button class="nav-toggle" onclick="toggleNav()"><i class="fa-solid fa-bars"></i></button>
+    <div class="nav-menu" id="navMenu">
+      {% if session.user_id %}
+        {% if session.role == 'admin' %}
+          <a href="{{ url_for('admin_dashboard') }}" class="nav-link {% if request.endpoint == 'admin_dashboard' %}active{% endif %}"><i class="fa-solid fa-gauge"></i> Dashboard</a>
+          <a href="{{ url_for('admin_users') }}" class="nav-link {% if 'users' in request.endpoint %}active{% endif %}"><i class="fa-solid fa-users"></i> Users</a>
+          <a href="{{ url_for('admin_books') }}" class="nav-link {% if 'books' in request.endpoint %}active{% endif %}"><i class="fa-solid fa-book-open"></i> Books</a>
+          <a href="{{ url_for('admin_borrows') }}" class="nav-link {% if 'borrows' in request.endpoint %}active{% endif %}"><i class="fa-solid fa-list"></i> Borrows</a>
+          <a href="{{ url_for('admin_scan_qr') }}" class="nav-link {% if 'scan' in request.endpoint %}active{% endif %}"><i class="fa-solid fa-qrcode"></i> Scan QR</a>
+          <a href="{{ url_for('admin_analytics') }}" class="nav-link {% if 'analytics' in request.endpoint %}active{% endif %}"><i class="fa-solid fa-chart-line"></i> Analytics</a>
+          <a href="{{ url_for('admin_promote') }}" class="nav-link {% if 'promote' in request.endpoint %}active{% endif %}"><i class="fa-solid fa-arrow-up"></i> Promote</a>
+        {% else %}
+          <a href="{{ url_for('index') }}" class="nav-link {% if request.endpoint == 'index' %}active{% endif %}"><i class="fa-solid fa-house"></i> Home</a>
+          <a href="{{ url_for('books') }}" class="nav-link {% if request.endpoint == 'books' %}active{% endif %}"><i class="fa-solid fa-book"></i> Books</a>
+          <a href="{{ url_for('my_borrows') }}" class="nav-link {% if request.endpoint == 'my_borrows' %}active{% endif %}"><i class="fa-solid fa-bookmark"></i> My Borrows</a>
+          <a href="{{ url_for('library_card') }}" class="nav-link {% if request.endpoint == 'library_card' %}active{% endif %}"><i class="fa-solid fa-id-card"></i> My Card</a>
+          <a href="{{ url_for('helpdesk') }}" class="nav-link {% if request.endpoint == 'helpdesk' %}active{% endif %}"><i class="fa-solid fa-headset"></i> Help</a>
+        {% endif %}
+        <div class="nav-user">
+          <span class="nav-username"><i class="fa-solid fa-user-circle"></i> {{ session.name.split()[0] }}</span>
+          <a href="{{ url_for('logout') }}" class="btn-logout"><i class="fa-solid fa-right-from-bracket"></i></a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</nav>
+
+<!-- Flash Messages -->
+<div class="flash-container">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+    <div class="flash flash-{{ category }}">
+      <i class="fa-solid {% if category == 'success' %}fa-circle-check{% elif category == 'danger' %}fa-circle-exclamation{% elif category == 'warning' %}fa-triangle-exclamation{% else %}fa-circle-info{% endif %}"></i>
+      <span>{{ message }}</span>
+      <button onclick="this.parentElement.remove()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    {% endfor %}
+  {% endwith %}
+</div>
+
+<!-- Main Content -->
+<main class="main-content">
+  {% block content %}{% endblock %}
+</main>
+
+<footer class="glass-footer">
+  <p><i class="fa-solid fa-book-open"></i> MyLibrary &copy; {{ 2024 }} &mdash; My Library Management System</p>
+</footer>
+
+<script src="{{ url_for('static', filename='js/script.js') }}"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

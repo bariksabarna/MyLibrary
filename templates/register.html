@@ -1,0 +1,142 @@
+{% extends 'base_auth.html' %}
+{% block title %}Register - MyLibrary{% endblock %}
+{% block content %}
+<div class="auth-card auth-card-wide">
+  <div class="auth-card-header">
+    <h2>Create Account</h2>
+    <p>Join the My Library System</p>
+  </div>
+  <form method="POST" action="{{ url_for('register') }}" enctype="multipart/form-data" class="auth-form">
+    <!-- User Type -->
+    <div class="form-group">
+      <label><i class="fa-solid fa-user-tag"></i> I am a</label>
+      <div class="radio-group">
+        <label class="radio-card {% if form_data.get('user_type') == 'student' %}selected{% endif %}">
+          <input type="radio" name="user_type" value="student" onchange="toggleUserType()" {% if form_data.get('user_type','student') == 'student' %}checked{% endif %}>
+          <i class="fa-solid fa-graduation-cap"></i> Student
+        </label>
+        <label class="radio-card {% if form_data.get('user_type') == 'teacher' %}selected{% endif %}">
+          <input type="radio" name="user_type" value="teacher" onchange="toggleUserType()" {% if form_data.get('user_type') == 'teacher' %}checked{% endif %}>
+          <i class="fa-solid fa-chalkboard-user"></i> Teacher
+        </label>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label><i class="fa-solid fa-user"></i> Full Name</label>
+        <input type="text" name="name" placeholder="Your full name" value="{{ form_data.get('name','') }}" required>
+      </div>
+      <div class="form-group">
+        <label><i class="fa-solid fa-envelope"></i> Email</label>
+        <input type="email" name="email" placeholder="your@email.com" value="{{ form_data.get('email','') }}" required>
+      </div>
+    </div>
+
+    <!-- Student Fields -->
+    <div id="studentFields" class="conditional-fields">
+      <div class="form-row">
+        <div class="form-group">
+          <label><i class="fa-solid fa-id-badge"></i> Registration Number</label>
+          <input type="text" name="reg_number" placeholder="e.g. D2242533465" value="{{ form_data.get('reg_number','') }}">
+        </div>
+        <div class="form-group">
+          <label><i class="fa-solid fa-calendar"></i> Year</label>
+          <select name="year">
+            <option value="">Select Year</option>
+            <option value="1st" {% if form_data.get('year')=='1st' %}selected{% endif %}>1st Year</option>
+            <option value="2nd" {% if form_data.get('year')=='2nd' %}selected{% endif %}>2nd Year</option>
+            <option value="3rd" {% if form_data.get('year')=='3rd' %}selected{% endif %}>3rd Year</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Teacher Fields -->
+    <div id="teacherFields" class="conditional-fields" style="display:none;">
+      <div class="form-group">
+        <label><i class="fa-solid fa-book"></i> Trade / Subject</label>
+        <input type="text" name="trade" placeholder="e.g. Computer Science, Electronics" value="{{ form_data.get('trade','') }}">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label><i class="fa-solid fa-camera"></i> Profile Photo <span class="optional">(optional)</span></label>
+      <div class="upload-area-sm" id="profileUploadArea" onclick="document.getElementById('profileFileInput').click()">
+        <div id="profilePreview" class="upload-preview-sm-empty">
+          <i class="fa-solid fa-user-circle"></i>
+          <span>Click to upload photo</span>
+        </div>
+      </div>
+      <input type="file" id="profileFileInput" name="profile_image" accept="image/*" style="display:none;" onchange="previewProfile(this)">
+      <small class="text-muted" style="margin-top:5px;"><i class="fa-brands fa-cloudflare" style="color:#f59e0b;"></i> Auto-converted to AVIF &amp; uploaded to Cloudinary</small>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label><i class="fa-solid fa-lock"></i> Password</label>
+        <div class="input-icon-r">
+          <input type="password" name="password" id="regPass" placeholder="Min 8 chars, A-Z, 0-9, !@#" required>
+          <button type="button" class="eye-btn" onclick="togglePass('regPass',this)"><i class="fa-solid fa-eye"></i></button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label><i class="fa-solid fa-lock-open"></i> Confirm Password</label>
+        <div class="input-icon-r">
+          <input type="password" name="confirm_password" id="regPass2" placeholder="Repeat password" required>
+          <button type="button" class="eye-btn" onclick="togglePass('regPass2',this)"><i class="fa-solid fa-eye"></i></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="password-strength" id="passStrength">
+      <div class="strength-bar"><span id="strengthBar"></span></div>
+      <div class="strength-rules" id="strengthRules">
+        <span id="r1"><i class="fa-solid fa-circle-xmark"></i> 8+ characters</span>
+        <span id="r2"><i class="fa-solid fa-circle-xmark"></i> Uppercase</span>
+        <span id="r3"><i class="fa-solid fa-circle-xmark"></i> Lowercase</span>
+        <span id="r4"><i class="fa-solid fa-circle-xmark"></i> Number</span>
+        <span id="r5"><i class="fa-solid fa-circle-xmark"></i> Special (!@#)</span>
+      </div>
+    </div>
+
+    <button type="submit" class="btn-auth"><i class="fa-solid fa-paper-plane"></i> Send OTP & Register</button>
+  </form>
+  <div class="auth-footer">
+    <p>Already registered? <a href="{{ url_for('login') }}">Sign in</a></p>
+  </div>
+</div>
+
+<script>
+function previewProfile(input) {
+  const area = document.getElementById('profilePreview');
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      area.innerHTML = `<img src="${e.target.result}" style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid var(--accent);">`;
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+function toggleUserType() {
+  const t = document.querySelector('input[name="user_type"]:checked')?.value;
+  document.getElementById('studentFields').style.display = t === 'student' ? 'block' : 'none';
+  document.getElementById('teacherFields').style.display = t === 'teacher' ? 'block' : 'none';
+  document.querySelectorAll('.radio-card').forEach(c => c.classList.remove('selected'));
+  document.querySelector(`input[value="${t}"]`)?.closest('.radio-card')?.classList.add('selected');
+}
+document.getElementById('regPass').addEventListener('input', function() {
+  const v = this.value;
+  const checks = [v.length >= 8, /[A-Z]/.test(v), /[a-z]/.test(v), /\d/.test(v), /[!@#$%^&*(),.?":{}|<>_\-]/.test(v)];
+  ['r1','r2','r3','r4','r5'].forEach((id, i) => {
+    const el = document.getElementById(id);
+    el.innerHTML = `<i class="fa-solid ${checks[i] ? 'fa-circle-check" style="color:#00d4aa' : 'fa-circle-xmark" style="color:#ef4444'}"></i> ` + el.textContent.trim();
+  });
+  const score = checks.filter(Boolean).length;
+  const bar = document.getElementById('strengthBar');
+  bar.style.width = (score * 20) + '%';
+  bar.style.background = score < 2 ? '#ef4444' : score < 4 ? '#f59e0b' : '#00d4aa';
+});
+toggleUserType();
+</script>
+{% endblock %}

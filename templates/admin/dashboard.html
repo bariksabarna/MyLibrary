@@ -1,0 +1,152 @@
+{% extends 'base.html' %}
+{% block title %}Admin Dashboard - MyLibrary{% endblock %}
+{% block content %}
+<div class="page-container">
+  <div class="page-header">
+    <h1><i class="fa-solid fa-gauge-high"></i> Admin Dashboard</h1>
+    <div class="header-actions">
+      <form method="POST" action="{{ url_for('admin_send_reminders') }}" style="display:inline;">
+        <button class="btn-warning btn-sm"><i class="fa-solid fa-bell"></i> Send Overdue Reminders</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Stats Grid -->
+  <div class="admin-stats">
+    <div class="admin-stat glass-card">
+      <div class="astat-icon users"><i class="fa-solid fa-users"></i></div>
+      <div class="astat-info">
+        <span class="astat-num">{{ total_users }}</span>
+        <span class="astat-label">Total Users</span>
+      </div>
+    </div>
+    <div class="admin-stat glass-card">
+      <div class="astat-icon books"><i class="fa-solid fa-book-open"></i></div>
+      <div class="astat-info">
+        <span class="astat-num">{{ total_books }}</span>
+        <span class="astat-label">Total Books</span>
+      </div>
+    </div>
+    <div class="admin-stat glass-card">
+      <div class="astat-icon active"><i class="fa-solid fa-book-open-reader"></i></div>
+      <div class="astat-info">
+        <span class="astat-num">{{ active_borrows }}</span>
+        <span class="astat-label">Active Borrows</span>
+      </div>
+    </div>
+    <div class="admin-stat glass-card pending-stat">
+      <div class="astat-icon pending"><i class="fa-solid fa-user-clock"></i></div>
+      <div class="astat-info">
+        <span class="astat-num">{{ pending_approvals }}</span>
+        <span class="astat-label">Pending Approvals</span>
+      </div>
+    </div>
+    <div class="admin-stat glass-card">
+      <div class="astat-icon issue"><i class="fa-solid fa-qrcode"></i></div>
+      <div class="astat-info">
+        <span class="astat-num">{{ pending_issues }}</span>
+        <span class="astat-label">Pending Issues</span>
+      </div>
+    </div>
+    <div class="admin-stat glass-card">
+      <div class="astat-icon return"><i class="fa-solid fa-rotate-left"></i></div>
+      <div class="astat-info">
+        <span class="astat-num">{{ pending_returns }}</span>
+        <span class="astat-label">Pending Returns</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="quick-actions glass-card">
+    <h3><i class="fa-solid fa-bolt"></i> Quick Actions</h3>
+    <div class="qa-btns">
+      <a href="{{ url_for('admin_scan_qr') }}" class="qa-btn"><i class="fa-solid fa-qrcode"></i><span>Scan QR</span></a>
+      <a href="{{ url_for('admin_add_book') }}" class="qa-btn"><i class="fa-solid fa-plus"></i><span>Add Book</span></a>
+      <a href="{{ url_for('admin_borrows', status='approved_pending_issue') }}" class="qa-btn"><i class="fa-solid fa-list-check"></i><span>Pending Issues</span></a>
+      <a href="{{ url_for('admin_users', status='pending') }}" class="qa-btn"><i class="fa-solid fa-user-plus"></i><span>Approve Users</span></a>
+      <a href="{{ url_for('admin_analytics') }}" class="qa-btn"><i class="fa-solid fa-chart-line"></i><span>Analytics</span></a>
+      <a href="{{ url_for('admin_promote') }}" class="qa-btn"><i class="fa-solid fa-arrow-up"></i><span>Promote</span></a>
+    </div>
+  </div>
+
+  <div class="dashboard-grid">
+    <!-- Pending Approvals -->
+    {% if pending_users %}
+    <div class="dash-section glass-card">
+      <div class="section-header">
+        <h3><i class="fa-solid fa-user-clock"></i> Pending Approvals</h3>
+        <a href="{{ url_for('admin_users', status='pending') }}" class="btn-link">View All</a>
+      </div>
+      {% for u in pending_users %}
+      <div class="approval-item">
+        <div class="user-info-mini">
+          {% if u.get('profile_image_url') %}
+            <img src="{{ u.profile_image_url }}" alt="Profile" class="user-avatar">
+          {% else %}
+            <div class="user-avatar-placeholder"><i class="fa-solid fa-user"></i></div>
+          {% endif %}
+          <div>
+            <strong>{{ u.name }}</strong>
+            <p class="text-sm text-muted">{{ u.email }}</p>
+            <p class="text-sm">{{ u.user_type|title }}{% if u.year %} — {{ u.year }} Year{% endif %}{% if u.trade %} — {{ u.trade }}{% endif %}</p>
+          </div>
+        </div>
+        <div class="approval-actions">
+          <form method="POST" action="{{ url_for('admin_approve_user', user_id=u.id) }}" style="display:inline;">
+            <button class="btn-sm btn-success"><i class="fa-solid fa-check"></i> Approve</button>
+          </form>
+          <form method="POST" action="{{ url_for('admin_reject_user', user_id=u.id) }}" style="display:inline;">
+            <button class="btn-sm btn-danger" onclick="return confirm('Reject this user?')"><i class="fa-solid fa-xmark"></i></button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Overdue Books -->
+    {% if overdue_items %}
+    <div class="dash-section glass-card">
+      <div class="section-header">
+        <h3><i class="fa-solid fa-triangle-exclamation text-danger"></i> Overdue Books</h3>
+      </div>
+      {% for b in overdue_items %}
+      <div class="overdue-item">
+        <div>
+          <strong>{{ b.book.get('title','') }}</strong>
+          <p class="text-sm text-muted">{{ b.user.get('name','') }} — {{ b.user.get('email','') }}</p>
+          <p class="text-sm">Due: {{ fmt_date(b.due_date) }}</p>
+        </div>
+        <span class="fine-badge">₹{{ b.fine }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Recent Borrows -->
+  <div class="dash-section glass-card mt-20">
+    <div class="section-header">
+      <h3><i class="fa-solid fa-clock-rotate-left"></i> Recent Borrows</h3>
+      <a href="{{ url_for('admin_borrows') }}" class="btn-link">View All</a>
+    </div>
+    <div class="table-wrap">
+      <table class="lib-table">
+        <thead><tr><th>User</th><th>Book</th><th>Status</th><th>Date</th><th>Fine</th></tr></thead>
+        <tbody>
+        {% for b in recent_borrows %}
+        <tr>
+          <td>{{ b.user.get('name','') }}</td>
+          <td>{{ b.book.get('title','') }}</td>
+          <td><span class="status-badge status-{{ b.status }}">{{ b.status.replace('_',' ').title() }}</span></td>
+          <td>{{ fmt_date(b.created_at) }}</td>
+          <td>{% if b.current_fine > 0 %}<span class="text-danger">₹{{ b.current_fine }}</span>{% else %}—{% endif %}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

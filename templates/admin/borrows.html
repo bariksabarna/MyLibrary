@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block title %}Borrows - MyLibrary{% endblock %}
+{% block content %}
+<div class="page-container">
+  <div class="page-header">
+    <h1><i class="fa-solid fa-list-check"></i> Borrow Management</h1>
+  </div>
+  <div class="glass-card filter-bar">
+    <form method="GET">
+      <select name="status" onchange="this.form.submit()">
+        <option value="">All Status</option>
+        <option value="approved_pending_issue" {% if status_filter=='approved_pending_issue' %}selected{% endif %}>Pending Issue</option>
+        <option value="issued" {% if status_filter=='issued' %}selected{% endif %}>Issued</option>
+        <option value="return_pending" {% if status_filter=='return_pending' %}selected{% endif %}>Pending Return</option>
+        <option value="returned" {% if status_filter=='returned' %}selected{% endif %}>Returned</option>
+      </select>
+      <a href="{{ url_for('admin_scan_qr') }}" class="btn-primary"><i class="fa-solid fa-qrcode"></i> Scan QR</a>
+    </form>
+  </div>
+  <div class="glass-card table-wrap">
+    <table class="lib-table">
+      <thead>
+        <tr><th>User</th><th>Book</th><th>Token</th><th>Status</th><th>Borrow Date</th><th>Due Date</th><th>Fine</th></tr>
+      </thead>
+      <tbody>
+      {% for b in borrows %}
+      <tr>
+        <td>
+          <strong>{{ b.user.get('name','') }}</strong><br>
+          <small>{{ b.user.get('email','') }}</small><br>
+          <code class="text-xs">{{ b.user.get('reg_number','') }}</code>
+        </td>
+        <td><strong>{{ b.book.get('title','') }}</strong></td>
+        <td><code class="token-code">{{ b.token }}</code></td>
+        <td><span class="status-badge status-{{ b.status }}">{{ b.status.replace('_',' ').title() }}</span></td>
+        <td>{{ fmt_date(b.borrow_date) if b.borrow_date else '—' }}</td>
+        <td>
+          {% if b.due_date %}
+            <span class="{% if b.current_fine > 0 and b.status=='issued' %}text-danger{% endif %}">{{ fmt_date(b.due_date) }}</span>
+          {% else %}—{% endif %}
+        </td>
+        <td>{% if b.current_fine > 0 %}<span class="text-danger font-bold">₹{{ b.current_fine }}</span>{% else %}—{% endif %}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" class="empty-td">No records found</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

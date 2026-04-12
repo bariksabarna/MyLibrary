@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% block title %}Manage Books - MyLibrary{% endblock %}
+{% block content %}
+<div class="page-container">
+  <div class="page-header">
+    <h1><i class="fa-solid fa-book-open"></i> Book Management</h1>
+    <a href="{{ url_for('admin_add_book') }}" class="btn-primary"><i class="fa-solid fa-plus"></i> Add Book</a>
+  </div>
+
+  <div class="glass-card filter-bar">
+    <form method="GET">
+      <input type="text" name="q" placeholder="Search books..." value="{{ search }}">
+      <button type="submit" class="btn-primary"><i class="fa-solid fa-search"></i> Search</button>
+      {% if search %}<a href="{{ url_for('admin_books') }}" class="btn-outline">Clear</a>{% endif %}
+    </form>
+  </div>
+
+  <div class="glass-card table-wrap">
+    <table class="lib-table">
+      <thead>
+        <tr><th>Cover</th><th>Title / Author</th><th>Category</th><th>Trade</th><th>Location</th><th>Stock</th><th>Actions</th></tr>
+      </thead>
+      <tbody>
+      {% for book in books %}
+      <tr>
+        <td>
+          {% if book.get('cover_url') %}
+            <img src="{{ book.cover_url }}" class="table-book-thumb" alt="">
+          {% else %}
+            <div class="table-book-thumb-ph"><i class="fa-solid fa-book"></i></div>
+          {% endif %}
+        </td>
+        <td>
+          <strong>{{ book.title }}</strong><br>
+          <small>{{ book.author or '—' }}</small><br>
+          {% if book.isbn %}<code class="text-xs">ISBN: {{ book.isbn }}</code>{% endif %}
+        </td>
+        <td>{{ book.category or '—' }}</td>
+        <td>{{ book.trade or '—' }}{% if book.semester %}<br><span class="tag-sm">Sem {{ book.semester }}</span>{% endif %}</td>
+        <td>
+          {% if book.rack or book.shelf %}
+            <i class="fa-solid fa-location-dot"></i> Rack {{ book.rack or '?' }} / Shelf {{ book.shelf or '?' }}
+          {% else %}—{% endif %}
+        </td>
+        <td>
+          <span class="stock-badge {% if book.available_quantity == 0 %}red{% elif book.available_quantity <= 1 %}orange{% else %}green{% endif %}">
+            {{ book.available_quantity }}/{{ book.total_quantity }}
+          </span>
+        </td>
+        <td>
+          <div class="action-group">
+            <a href="{{ url_for('admin_edit_book', book_id=book.id) }}" class="btn-icon" title="Edit"><i class="fa-solid fa-pen"></i></a>
+            <form method="POST" action="{{ url_for('admin_delete_book', book_id=book.id) }}" style="display:inline;" onsubmit="return confirm('Delete this book?')">
+              <button class="btn-icon btn-icon-danger" title="Delete"><i class="fa-solid fa-trash"></i></button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" class="empty-td"><i class="fa-solid fa-book-open"></i> No books found</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if total_pages > 1 %}
+  <div class="pagination">
+    {% if page > 1 %}<a href="{{ url_for('admin_books', page=page-1, q=search) }}" class="page-btn"><i class="fa-solid fa-chevron-left"></i></a>{% endif %}
+    {% for p in range(1, total_pages+1) %}
+      {% if p == page %}<span class="page-btn active">{{ p }}</span>
+      {% elif p == 1 or p == total_pages or (p >= page-2 and p <= page+2) %}
+        <a href="{{ url_for('admin_books', page=p, q=search) }}" class="page-btn">{{ p }}</a>
+      {% endif %}
+    {% endfor %}
+    {% if page < total_pages %}<a href="{{ url_for('admin_books', page=page+1, q=search) }}" class="page-btn"><i class="fa-solid fa-chevron-right"></i></a>{% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

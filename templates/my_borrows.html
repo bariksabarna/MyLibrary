@@ -1,0 +1,118 @@
+{% extends 'base.html' %}
+{% block title %}My Borrows - MyLibrary{% endblock %}
+{% block content %}
+<div class="page-container">
+  <div class="page-header">
+    <h1><i class="fa-solid fa-bookmark"></i> My Borrows</h1>
+  </div>
+
+  <!-- Queue Items -->
+  {% if queue_items %}
+  <section class="section">
+    <h2 class="section-title"><i class="fa-solid fa-list-ol"></i> Queue / Reservations</h2>
+    <div class="table-wrap glass-card">
+      <table class="lib-table">
+        <thead><tr><th>Book</th><th>Position</th><th>Status</th><th>Date</th></tr></thead>
+        <tbody>
+        {% for q in queue_items %}
+        <tr>
+          <td>
+            <div class="table-book-info">
+              <strong>{{ q.book.get('title','') }}</strong>
+              <small>{{ q.book.get('author','') }}</small>
+            </div>
+          </td>
+          <td><span class="position-badge">#{{ q.position }}</span></td>
+          <td><span class="status-badge status-waiting"><i class="fa-solid fa-clock"></i> Waiting</span></td>
+          <td>{{ fmt_date(q.created_at) }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- Borrow History -->
+  <section class="section">
+    <h2 class="section-title"><i class="fa-solid fa-clock-rotate-left"></i> Borrow History</h2>
+    {% if borrows %}
+    <div class="table-wrap glass-card">
+      <table class="lib-table">
+        <thead>
+          <tr>
+            <th>Book</th>
+            <th>Status</th>
+            <th>Token</th>
+            <th>Borrow Date</th>
+            <th>Due Date</th>
+            <th>Fine</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for b in borrows %}
+        <tr>
+          <td>
+            <div class="table-book-info">
+              {% if b.book.get('cover_url') %}
+                <img src="{{ b.book.cover_url }}" alt="" class="table-cover">
+              {% endif %}
+              <div>
+                <strong>{{ b.book.get('title','Unknown') }}</strong>
+                <small>{{ b.book.get('author','') }}</small>
+              </div>
+            </div>
+          </td>
+          <td>
+            <span class="status-badge status-{{ b.status }}">
+              {% if b.status == 'approved_pending_issue' %}Collect at Counter
+              {% elif b.status == 'issued' %}Issued
+              {% elif b.status == 'return_pending' %}Return Pending
+              {% elif b.status == 'returned' %}Returned
+              {% else %}{{ b.status }}{% endif %}
+            </span>
+          </td>
+          <td><code class="token-code">{{ b.token }}</code></td>
+          <td>{{ fmt_date(b.borrow_date) if b.borrow_date else '—' }}</td>
+          <td>
+            {% if b.due_date %}
+              <span class="{% if b.current_fine > 0 and b.status == 'issued' %}text-danger{% endif %}">
+                {{ fmt_date(b.due_date) }}
+              </span>
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            {% if b.current_fine > 0 %}
+              <span class="text-danger font-bold">₹{{ b.current_fine }}</span>
+            {% else %}<span class="text-success">—</span>{% endif %}
+          </td>
+          <td>
+            {% if b.status == 'approved_pending_issue' %}
+              <a href="{{ url_for('borrow_qr', borrow_id=b.id) }}" class="btn-sm btn-primary">QR Code</a>
+            {% elif b.status == 'issued' %}
+              <form method="POST" action="{{ url_for('return_request', borrow_id=b.id) }}" style="display:inline;">
+                <button class="btn-sm btn-warning" onclick="return confirm('Return this book?')">Return</button>
+              </form>
+            {% elif b.status == 'return_pending' %}
+              <a href="{{ url_for('return_qr', borrow_id=b.id) }}" class="btn-sm btn-outline">Return QR</a>
+            {% elif b.status == 'returned' %}
+              <span class="text-muted text-sm">Done</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="empty-state glass-card">
+      <i class="fa-solid fa-book-open"></i>
+      <h3>No borrows yet</h3>
+      <p>Start borrowing books from our collection!</p>
+      <a href="{{ url_for('books') }}" class="btn-primary">Browse Books</a>
+    </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

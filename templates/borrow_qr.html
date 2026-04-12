@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block title %}Borrow QR - MyLibrary{% endblock %}
+{% block content %}
+<div class="page-container">
+  <div class="qr-page glass-card">
+    <div class="qr-header">
+      <div class="qr-icon-wrap success"><i class="fa-solid fa-qrcode"></i></div>
+      <h2>Show This QR Code</h2>
+      <p>Present at the library counter to collect your book</p>
+    </div>
+    <div class="qr-content">
+      <div class="qr-book-info">
+        {% if book.get('cover_url') %}
+          <img src="{{ book.cover_url }}" alt="Cover" class="qr-book-cover">
+        {% endif %}
+        <div>
+          <h3>{{ book.get('title','') }}</h3>
+          <p>{{ book.get('author','') }}</p>
+        </div>
+      </div>
+      <div class="qr-image-wrap">
+        <img src="data:image/png;base64,{{ qr_data }}" alt="QR Code" class="qr-image">
+      </div>
+      <div class="qr-token">
+        <span>Token:</span>
+        <code>{{ borrow.token }}</code>
+      </div>
+      <div class="qr-status">
+        <span class="status-badge status-approved_pending_issue"><i class="fa-solid fa-clock"></i> Waiting for Issue</span>
+      </div>
+    </div>
+    <div class="qr-instructions">
+      <div class="instruction"><i class="fa-solid fa-1 step-num"></i><span>Go to the library counter</span></div>
+      <div class="instruction"><i class="fa-solid fa-2 step-num"></i><span>Show this QR code / token</span></div>
+      <div class="instruction"><i class="fa-solid fa-3 step-num"></i><span>Librarian scans &amp; confirms issue</span></div>
+      <div class="instruction"><i class="fa-solid fa-4 step-num"></i><span>Collect your book!</span></div>
+    </div>
+    <a href="{{ url_for('my_borrows') }}" class="btn-outline"><i class="fa-solid fa-arrow-left"></i> My Borrows</a>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% block title %}Promote Students - MyLibrary{% endblock %}
+{% block content %}
+<div class="page-container">
+  <div class="page-header">
+    <h1><i class="fa-solid fa-arrow-up"></i> Student Promotion</h1>
+    <p>Promote students to the next year. Order: 3rd → Passout, then 2nd → 3rd, then 1st → 2nd.</p>
+  </div>
+
+  {% for group in [('3rd','passout',students_3rd),('2nd','3rd',students_2nd),('1st','2nd',students_1st)] %}
+  <div class="glass-card promote-section">
+    <div class="promote-header">
+      <h3>
+        <span class="year-badge">{{ group[0] }} Year</span>
+        <i class="fa-solid fa-arrow-right"></i>
+        <span class="year-badge {{ 'passout-badge' if group[1] == 'passout' else '' }}">{{ group[1]|title }}</span>
+      </h3>
+      <span class="count-pill">{{ group[2]|length }} students</span>
+    </div>
+
+    {% if group[2] %}
+    <form method="POST" action="{{ url_for('admin_do_promote') }}" onsubmit="return confirmPromote('{{ group[0] }}', '{{ group[1] }}')">
+      <input type="hidden" name="from_year" value="{{ group[0] }}">
+      <div class="promote-search">
+        <input type="text" placeholder="Search by name or reg number..." oninput="filterPromote(this, 'list{{ group[0] }}')">
+      </div>
+      <div class="students-checklist" id="list{{ group[0] }}">
+        {% for s in group[2] %}
+        <label class="student-check-item" data-name="{{ s.name|lower }}" data-reg="{{ (s.reg_number or '')|lower }}">
+          <input type="checkbox" name="exclude" value="{{ s.id }}" class="exclude-check">
+          <div class="student-check-info">
+            {% if s.get('profile_image_url') %}
+              <img src="{{ s.profile_image_url }}" class="sc-avatar">
+            {% else %}
+              <div class="sc-avatar-ph"><i class="fa-solid fa-user"></i></div>
+            {% endif %}
+            <div>
+              <strong>{{ s.name }}</strong>
+              <p>{{ s.email }}</p>
+              {% if s.reg_number %}<code>{{ s.reg_number }}</code>{% endif %}
+            </div>
+          </div>
+          <span class="exclude-label">Exclude</span>
+        </label>
+        {% endfor %}
+      </div>
+      <div class="promote-footer">
+        <p class="text-muted text-sm"><i class="fa-solid fa-info-circle"></i> Checked students will be excluded from promotion.</p>
+        <button type="submit" class="btn-{{ 'danger' if group[1] == 'passout' else 'primary' }} btn-lg">
+          <i class="fa-solid fa-arrow-up"></i>
+          Promote {{ group[0] }} → {{ group[1]|title }}
+        </button>
+      </div>
+    </form>
+    {% else %}
+    <div class="empty-state-sm"><i class="fa-solid fa-users-slash"></i> No {{ group[0] }} year students</div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+<script>
+function filterPromote(input, listId) {
+  const q = input.value.toLowerCase();
+  document.querySelectorAll(`#${listId} .student-check-item`).forEach(item => {
+    const name = item.dataset.name || '';
+    const reg = item.dataset.reg || '';
+    item.style.display = (name.includes(q) || reg.includes(q)) ? '' : 'none';
+  });
+}
+function confirmPromote(from, to) {
+  const count = document.querySelectorAll(`input[name="from_year"][value="${from}"]`).length;
+  return confirm(`Promote all eligible ${from} year students to ${to}? This cannot be undone.`);
+}
+</script>
+{% endblock %}

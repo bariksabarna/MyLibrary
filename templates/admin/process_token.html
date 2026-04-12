@@ -1,0 +1,209 @@
+{% extends 'base.html' %}
+{% block title %}Process Token - MyLibrary{% endblock %}
+{% block content %}
+<div class="page-container" style="max-width:560px;">
+
+  {% if error %}
+  <div class="glass-card" style="padding:32px;text-align:center;margin-top:20px;">
+    <i class="fa-solid fa-circle-exclamation"
+      style="font-size:3rem;color:var(--danger);margin-bottom:14px;display:block;"></i>
+    <h2 style="color:var(--danger);font-family:'Raleway',sans-serif;margin-bottom:10px;">Error</h2>
+    <p style="color:var(--muted);">{{ error }}</p>
+    <a href="{{ url_for('admin_scan_qr') }}" class="btn-primary" style="margin-top:20px;display:inline-flex;">
+      <i class="fa-solid fa-arrow-left"></i> Back to Scanner
+    </a>
+  </div>
+
+  {% elif action == 'issue' %}
+  <div class="page-header">
+    <h1><i class="fa-solid fa-book-circle-arrow-right"></i> Issue Book</h1>
+  </div>
+  <div class="glass-card" style="padding:22px;margin-bottom:14px;">
+    <div
+      style="display:flex;gap:14px;align-items:center;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.07);margin-bottom:14px;">
+      {% if user.get('profile_image_url') %}
+      <img src="{{ user.profile_image_url }}"
+        style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid rgba(99,102,241,0.3);">
+      {% else %}
+      <div
+        style="width:56px;height:56px;border-radius:50%;background:rgba(99,102,241,0.1);display:flex;align-items:center;justify-content:center;font-size:1.4rem;color:#6366f1;flex-shrink:0;">
+        <i class="fa-solid fa-user"></i>
+      </div>
+      {% endif %}
+      <div>
+        <h3 style="font-family:'Raleway',sans-serif;font-size:1.1rem;">{{ user.get('name','—') }}</h3>
+        <p style="color:var(--muted);font-size:0.82rem;">{{ user.get('email','') }}</p>
+        <p style="font-size:0.82rem;">
+          <strong>{{ user.get('year','') }} {% if user.user_type == 'student' %}Year{% else %}{{ user.get('trade','')
+            }}{% endif %}</strong>
+          {% if user.get('reg_number') %} &middot; {{ user.reg_number }}{% endif %}
+        </p>
+      </div>
+    </div>
+    <div style="display:flex;gap:12px;align-items:flex-start;">
+      {% if book.get('cover_url') %}
+      <img src="{{ book.cover_url }}" style="width:60px;height:80px;border-radius:8px;object-fit:cover;flex-shrink:0;">
+      {% endif %}
+      <div>
+        <h4 style="font-size:1rem;font-weight:700;">{{ book.get('title','—') }}</h4>
+        <p style="color:var(--muted);font-size:0.82rem;">{{ book.get('author','') }}</p>
+        <p style="color:#4ade80;font-size:0.82rem;margin-top:6px;"><i class="fa-solid fa-calendar"></i> Due: <strong>{{
+            due_date }}</strong></p>
+      </div>
+    </div>
+    {% if current_books %}
+    <div style="margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.07);">
+      <p style="font-size:0.78rem;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.5px;">
+        Currently borrowed</p>
+      {% for b in current_books %}
+      <div style="font-size:0.82rem;padding:4px 0;display:flex;align-items:center;gap:7px;">
+        <i class="fa-solid fa-book" style="color:rgba(99,102,241,0.5);font-size:0.8rem;"></i> {{ b }}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+  <form method="POST" action="{{ url_for('admin_process_action') }}">
+    <input type="hidden" name="action" value="issue">
+    <input type="hidden" name="borrow_id" value="{{ borrow_id }}">
+    <input type="hidden" name="token" value="{{ token }}">
+    <div style="display:flex;gap:10px;">
+      <button type="submit" class="btn-primary btn-lg" style="flex:1;justify-content:center;">
+        <i class="fa-solid fa-check"></i> Confirm Issue
+      </button>
+      <a href="{{ url_for('admin_scan_qr') }}" class="btn-outline btn-lg">Cancel</a>
+    </div>
+  </form>
+
+  {% elif action == 'return' %}
+  <div class="page-header">
+    <h1><i class="fa-solid fa-rotate-left"></i> Return Book</h1>
+  </div>
+  <div class="glass-card" style="padding:22px;margin-bottom:14px;">
+    <div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.07);">
+      <h3 style="font-size:1rem;font-weight:700;">{{ user.get('name','—') }}</h3>
+      <p style="color:var(--muted);font-size:0.82rem;">{{ user.get('email','') }}</p>
+    </div>
+    <h4 style="font-size:1rem;font-weight:700;margin-bottom:12px;">{{ book.get('title','—') }}</h4>
+    <div
+      style="display:flex;flex-direction:column;gap:0;border:1px solid rgba(255,255,255,0.08);border-radius:10px;overflow:hidden;">
+      <div
+        style="display:flex;justify-content:space-between;padding:11px 14px;border-bottom:1px solid rgba(255,255,255,0.05);">
+        <span style="color:var(--muted);font-size:0.855rem;">Borrow Date</span>
+        <span style="font-size:0.855rem;">{{ borrow_date }}</span>
+      </div>
+      <div
+        style="display:flex;justify-content:space-between;padding:11px 14px;border-bottom:1px solid rgba(255,255,255,0.05);">
+        <span style="color:var(--muted);font-size:0.855rem;">Due Date</span>
+        <span style="font-size:0.855rem;">{{ due_date }}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:11px 14px;">
+        <span style="color:var(--muted);font-size:0.855rem;">Fine</span>
+        {% if fine > 0 %}
+        <span style="color:#ef4444;font-weight:800;font-size:1.1rem;">₹{{ fine }}</span>
+        {% else %}
+        <span style="color:#4ade80;font-weight:700;">No Fine ✓</span>
+        {% endif %}
+      </div>
+    </div>
+    {% if fine > 0 %}
+    <div
+      style="margin-top:12px;padding:10px 14px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.22);border-radius:8px;color:#f87171;font-size:0.82rem;">
+      <i class="fa-solid fa-triangle-exclamation"></i> Collect ₹{{ fine }} fine before confirming return.
+    </div>
+    {% endif %}
+  </div>
+  <form method="POST" action="{{ url_for('admin_process_action') }}">
+    <input type="hidden" name="action" value="return">
+    <input type="hidden" name="borrow_id" value="{{ borrow_id }}">
+    <input type="hidden" name="token" value="{{ token }}">
+    <div style="display:flex;gap:10px;">
+      <button type="submit" class="btn-warning btn-lg" style="flex:1;justify-content:center;">
+        <i class="fa-solid fa-check"></i> Confirm Return
+      </button>
+      <a href="{{ url_for('admin_scan_qr') }}" class="btn-outline btn-lg">Cancel</a>
+    </div>
+  </form>
+
+  {% elif action == 'card' %}
+  <div class="page-header">
+    <h1><i class="fa-solid fa-id-card"></i> Library Card</h1>
+  </div>
+  <div class="glass-card" style="padding:22px;margin-bottom:14px;">
+    <div
+      style="display:flex;gap:14px;align-items:center;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.07);margin-bottom:14px;">
+      {% if user.get('profile_image_url') %}
+      <img src="{{ user.profile_image_url }}"
+        style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid rgba(99,102,241,0.3);">
+      {% else %}
+      <div
+        style="width:56px;height:56px;border-radius:50%;background:rgba(99,102,241,0.1);display:flex;align-items:center;justify-content:center;font-size:1.4rem;color:#6366f1;flex-shrink:0;">
+        <i class="fa-solid fa-user"></i>
+      </div>
+      {% endif %}
+      <div>
+        <h3 style="font-family:'Raleway',sans-serif;font-size:1.1rem;">{{ user.get('name','—') }}</h3>
+        <p style="color:var(--muted);font-size:0.82rem;">{{ user.get('email','') }}</p>
+        <p style="font-size:0.82rem;">
+          <strong>{{ user.get('year','') }} {% if user.user_type == 'student' %}Year Student{% else %}Teacher — {{
+            user.get('trade','') }}{% endif %}</strong>
+          {% if user.get('reg_number') %} &middot; {{ user.reg_number }}{% endif %}
+        </p>
+      </div>
+    </div>
+    <p style="font-size:0.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">
+      Active Borrows ({{ active_books|length }})</p>
+    {% if active_books %}
+    {% for b in active_books %}
+    <div
+      style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.05);">
+      <div>
+        <strong style="font-size:0.875rem;">{{ b.title }}</strong>
+        {% if b.due_date %}<p style="font-size:0.75rem;color:var(--muted);margin-top:2px;">Due: {{ b.due_date }}</p>{%
+        endif %}
+      </div>
+      <div style="text-align:right;">
+        <span class="status-badge status-{{ b.status }}" style="font-size:0.68rem;">{{ b.status.replace('_',' ')
+          }}</span>
+        {% if b.fine > 0 %}<p style="color:#ef4444;font-size:0.75rem;margin-top:3px;">₹{{ b.fine }} fine</p>{% endif %}
+      </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <p style="color:var(--muted);font-size:0.855rem;">No active borrows.</p>
+    {% endif %}
+  </div>
+  <!-- Borrow History -->
+    {% if borrow_history %}
+    <div style="margin-top:18px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.07);">
+      <p style="font-size:0.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">
+        <strong>Full Borrow History (last 20)</strong>
+      </p>
+      {% for b in borrow_history %}
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;padding:9px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
+        <div>
+          <strong style="font-size:0.835rem;">{{ b.title }}</strong>
+          <p style="font-size:0.72rem;color:var(--muted);margin:2px 0;">
+            {% if b.borrow_date %}Issued: {{ b.borrow_date }}{% endif %}
+            {% if b.return_date %} &middot; Returned: {{ b.return_date }}{% endif %}
+            {% if b.due_date and not b.return_date %} &middot; Due: {{ b.due_date }}{% endif %}
+          </p>
+        </div>
+        <div style="text-align:right;flex-shrink:0;margin-left:10px;">
+          <span class="status-badge status-{{ b.status }}" style="font-size:0.65rem;">{{ b.status.replace('_',' ') }}</span>
+          {% if b.fine > 0 %}
+            <p style="color:#ef4444;font-size:0.72rem;margin:3px 0;">₹{{ b.fine }} fine</p>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  <a href="{{ url_for('admin_scan_qr') }}" class="btn-outline" style="display:inline-flex;">
+    <i class="fa-solid fa-arrow-left"></i> Back to Scanner
+  </a>
+
+  {% endif %}
+
+</div>
+{% endblock %}

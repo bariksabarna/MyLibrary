@@ -1,0 +1,9 @@
+# ─── Python ───────────────────────────────────────────────
+__pycache__/
+
+# ─── Virtual Environments ─────────────────────────────────
+venv/
+
+# Keep .env.example but NEVER commit real .env
+.env
+!.env.example

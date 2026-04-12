@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% block title %}Library Card - MyLibrary{% endblock %}
+{% block content %}
+<div class="page-container">
+  <div class="page-header">
+    <h1><i class="fa-solid fa-id-card"></i> Digital Library Card</h1>
+  </div>
+
+  <div class="card-wrapper">
+    <!-- Front of card -->
+    <div class="lib-card glass-card">
+      <div class="lib-card-header">
+        <div class="lib-card-logo"><i class="fa-solid fa-book-open"></i> MyLibrary</div>
+        <div class="lib-card-type">{{ 'STUDENT' if user.user_type == 'student' else 'TEACHER' }} CARD</div>
+      </div>
+      <div class="lib-card-body">
+        <div class="lib-card-photo">
+          {% if user.get('profile_image_url') %}
+            <img src="{{ user.profile_image_url }}" alt="Profile">
+          {% else %}
+            <div class="photo-placeholder"><i class="fa-solid fa-user"></i></div>
+          {% endif %}
+        </div>
+        <div class="lib-card-details">
+          <h2>{{ user.name }}</h2>
+          <p class="card-email">{{ user.email }}</p>
+          {% if user.reg_number %}<p><strong>Reg No:</strong> {{ user.reg_number }}</p>{% endif %}
+          {% if user.year %}<p><strong>Year:</strong> {{ user.year }}</p>{% endif %}
+          {% if user.trade %}<p><strong>Trade:</strong> {{ user.trade }}</p>{% endif %}
+          <div class="card-counts">
+            <div class="card-count-item">
+              <span class="count-num">{{ borrows|length }}</span>
+              <span class="count-label">Active Books</span>
+            </div>
+            <div class="card-count-item">
+              <span class="count-num">{{ queues|length }}</span>
+              <span class="count-label">In Queue</span>
+            </div>
+          </div>
+        </div>
+        <div class="lib-card-qr">
+          <img src="data:image/png;base64,{{ card_qr }}" alt="Card QR">
+          <p>Scan to verify</p>
+        </div>
+      </div>
+      <div class="lib-card-footer">
+        <p>This card is valid for the current academic year. Max {{ max_books }} books. Fine: ₹{{ fine_per_day }}/day</p>
+      </div>
+    </div>
+
+    <!-- Currently borrowed -->
+    {% if borrows %}
+    <div class="card-borrows glass-card">
+      <h3><i class="fa-solid fa-book-open-reader"></i> Currently Borrowed</h3>
+      {% for b in borrows %}
+      <div class="card-borrow-item">
+        <div>
+          <strong>{{ b.book.get('title','') }}</strong>
+          <p>{{ b.book.get('author','') }}</p>
+        </div>
+        <div class="right">
+          <span class="status-badge status-{{ b.status }}">{{ b.status.replace('_',' ').title() }}</span>
+          {% if b.due_date %}
+            {% set fine = calculate_fine(b.due_date) %}
+            <p class="{% if fine > 0 %}text-danger{% else %}text-muted{% endif %} text-sm">
+              {% if fine > 0 %}Fine: ₹{{ fine }}{% else %}Due: {{ fmt_date(b.due_date) }}{% endif %}
+            </p>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

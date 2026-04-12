@@ -1,0 +1,120 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard - MyLibrary{% endblock %}
+{% block content %}
+<div class="page-container">
+  <div class="page-header">
+    <h1><i class="fa-solid fa-house"></i> Welcome, {{ session.name.split()[0] }}!</h1>
+    <p>Your library at a glance</p>
+  </div>
+
+  <!-- Stats Row -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-icon"><i class="fa-solid fa-book-open-reader"></i></div>
+      <div class="stat-info">
+        <span class="stat-val">{{ borrow_count }}</span>
+        <span class="stat-label">Books Borrowed</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon green"><i class="fa-solid fa-book-open"></i></div>
+      <div class="stat-info">
+        <span class="stat-val">{{ max_books - borrow_count }}</span>
+        <span class="stat-label">Can Still Borrow</span>
+      </div>
+    </div>
+    {% if overdue_count > 0 %}
+    <div class="stat-card red">
+      <div class="stat-icon"><i class="fa-solid fa-triangle-exclamation"></i></div>
+      <div class="stat-info">
+        <span class="stat-val">{{ overdue_count }}</span>
+        <span class="stat-label">Overdue Books</span>
+      </div>
+    </div>
+    {% endif %}
+    <div class="stat-card">
+      <div class="stat-icon purple"><i class="fa-solid fa-coins"></i></div>
+      <div class="stat-info">
+        <a href="{{ url_for('books') }}" class="stat-link"><i class="fa-solid fa-arrow-right"></i> Browse Books</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Active Borrows -->
+  {% if active_borrows %}
+  <section class="section">
+    <div class="section-header">
+      <h2><i class="fa-solid fa-bookmark"></i> Active Borrows</h2>
+      <a href="{{ url_for('my_borrows') }}" class="btn-link">View All <i class="fa-solid fa-arrow-right"></i></a>
+    </div>
+    <div class="borrow-cards">
+      {% for b in active_borrows %}
+      <div class="borrow-card glass-card">
+        <div class="borrow-cover">
+          {% if b.book.get('cover_url') %}
+            <img src="{{ b.book.cover_url }}" alt="Cover" loading="lazy">
+          {% else %}
+            <div class="cover-placeholder"><i class="fa-solid fa-book"></i></div>
+          {% endif %}
+        </div>
+        <div class="borrow-info">
+          <h3>{{ b.book.get('title','Unknown') }}</h3>
+          <p class="text-muted">{{ b.book.get('author','') }}</p>
+          <div class="borrow-meta">
+            <span class="status-badge status-{{ b.status }}">
+              {% if b.status == 'approved_pending_issue' %}<i class="fa-solid fa-qrcode"></i> Collect at Counter
+              {% elif b.status == 'issued' %}<i class="fa-solid fa-check-circle"></i> Issued
+              {% elif b.status == 'return_pending' %}<i class="fa-solid fa-rotate-left"></i> Return Pending
+              {% endif %}
+            </span>
+            {% if b.status == 'issued' %}
+              {% set fine = calculate_fine(b.due_date) %}
+              <span class="due-info {% if fine > 0 %}overdue{% endif %}">
+                {% if fine > 0 %}<i class="fa-solid fa-exclamation-triangle"></i> Fine: ₹{{ fine }}
+                {% else %}<i class="fa-regular fa-clock"></i> Due: {{ fmt_date(b.due_date) }}
+                {% endif %}
+              </span>
+            {% endif %}
+          </div>
+          {% if b.status == 'approved_pending_issue' %}
+          <a href="{{ url_for('borrow_qr', borrow_id=b.id) }}" class="btn-sm btn-primary">Show QR</a>
+          {% elif b.status == 'return_pending' %}
+          <a href="{{ url_for('return_qr', borrow_id=b.id) }}" class="btn-sm btn-warning">Show Return QR</a>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- Recent Books -->
+  <section class="section">
+    <div class="section-header">
+      <h2><i class="fa-solid fa-sparkles"></i> Recently Added</h2>
+      <a href="{{ url_for('books') }}" class="btn-link">Browse All <i class="fa-solid fa-arrow-right"></i></a>
+    </div>
+    <div class="books-grid">
+      {% for book in recent_books %}
+      <a href="{{ url_for('book_detail', book_id=book.id) }}" class="book-card glass-card">
+        <div class="book-cover">
+          {% if book.get('cover_url') %}
+            <img src="{{ book.cover_url }}" alt="{{ book.title }}" loading="lazy">
+          {% else %}
+            <div class="cover-placeholder-lg"><i class="fa-solid fa-book"></i></div>
+          {% endif %}
+          <div class="book-available {% if book.available_quantity > 0 %}avail{% else %}unavail{% endif %}">
+            {{ 'Available' if book.available_quantity > 0 else 'Queued' }}
+          </div>
+        </div>
+        <div class="book-info">
+          <h4>{{ book.title }}</h4>
+          <p>{{ book.author or 'Unknown' }}</p>
+          <span class="book-cat">{{ book.category or 'General' }}</span>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}

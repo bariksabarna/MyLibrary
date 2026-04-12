@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% block title %}User Detail - MyLibrary{% endblock %}
+{% block content %}
+<div class="page-container">
+  <a href="{{ url_for('admin_users') }}" class="back-link"><i class="fa-solid fa-arrow-left"></i> Back to Users</a>
+  <div class="user-detail-wrapper">
+    <div class="glass-card user-profile-card">
+      <div class="profile-header">
+        {% if user.get('profile_image_url') %}
+          <img src="{{ user.profile_image_url }}" class="profile-pic-lg">
+        {% else %}
+          <div class="profile-pic-ph-lg"><i class="fa-solid fa-user"></i></div>
+        {% endif %}
+        <div>
+          <h2>{{ user.name }}</h2>
+          <p>{{ user.email }}</p>
+          <div class="profile-tags">
+            <span class="tag">{{ user.user_type|title }}</span>
+            {% if user.year %}<span class="tag">{{ user.year }} Year</span>{% endif %}
+            {% if user.trade %}<span class="tag">{{ user.trade }}</span>{% endif %}
+            {% if user.is_approved %}<span class="tag tag-success">Approved</span>{% else %}<span class="tag tag-warn">Pending</span>{% endif %}
+          </div>
+        </div>
+        <div class="profile-qr">
+          <img src="data:image/png;base64,{{ card_qr }}" alt="Card QR" style="width:100px;">
+        </div>
+      </div>
+      <div class="profile-meta">
+        {% if user.reg_number %}<div class="meta-row"><span>Reg Number</span><code>{{ user.reg_number }}</code></div>{% endif %}
+        <div class="meta-row"><span>Member Since</span><span>{{ fmt_date(user.created_at) }}</span></div>
+        <div class="meta-row"><span>Account Status</span><span>{{ 'Active' if user.is_active else 'Inactive' }}</span></div>
+      </div>
+      <div class="profile-actions">
+        {% if not user.is_approved %}
+        <form method="POST" action="{{ url_for('admin_approve_user', user_id=user.id) }}" style="display:inline;">
+          <button class="btn-success"><i class="fa-solid fa-check"></i> Approve User</button>
+        </form>
+        {% endif %}
+        <form method="POST" action="{{ url_for('admin_delete_user', user_id=user.id) }}" style="display:inline;" onsubmit="return confirm('Delete this user?')">
+          <button class="btn-danger"><i class="fa-solid fa-trash"></i> Delete User</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="glass-card">
+      <h3><i class="fa-solid fa-clock-rotate-left"></i> Borrow History</h3>
+      <div class="table-wrap">
+        <table class="lib-table">
+          <thead><tr><th>Book</th><th>Status</th><th>Borrow Date</th><th>Due Date</th><th>Fine</th></tr></thead>
+          <tbody>
+          {% for b in borrows %}
+          <tr>
+            <td><strong>{{ b.book.get('title','') }}</strong><br><small>{{ b.book.get('author','') }}</small></td>
+            <td><span class="status-badge status-{{ b.status }}">{{ b.status.replace('_',' ').title() }}</span></td>
+            <td>{{ fmt_date(b.borrow_date) if b.borrow_date else '—' }}</td>
+            <td>{{ fmt_date(b.due_date) if b.due_date else '—' }}</td>
+            <td>{% if b.current_fine > 0 %}<span class="text-danger font-bold">₹{{ b.current_fine }}</span>{% else %}—{% endif %}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="empty-td">No borrow history</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

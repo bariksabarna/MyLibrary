@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+{% block title %}Analytics - MyLibrary{% endblock %}
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+{% block content %}
+<div class="page-container">
+  <div class="page-header">
+    <h1><i class="fa-solid fa-chart-line"></i> Library Analytics</h1>
+  </div>
+
+  <!-- Summary Stats -->
+  <div class="analytics-stats">
+    <div class="astat-card glass-card">
+      <i class="fa-solid fa-users"></i>
+      <div>
+        <span class="big-num">{{ total_users }}</span>
+        <span>Total Users</span>
+      </div>
+    </div>
+    <div class="astat-card glass-card">
+      <i class="fa-solid fa-book-open"></i>
+      <div>
+        <span class="big-num">{{ total_books }}</span>
+        <span>Total Books</span>
+      </div>
+    </div>
+    <div class="astat-card glass-card">
+      <i class="fa-solid fa-book-open-reader"></i>
+      <div>
+        <span class="big-num">{{ total_borrows }}</span>
+        <span>Total Borrows</span>
+      </div>
+    </div>
+    <div class="astat-card glass-card">
+      <i class="fa-solid fa-coins"></i>
+      <div>
+        <span class="big-num">₹{{ total_fines }}</span>
+        <span>Total Fines Collected</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Charts Grid -->
+  <div class="charts-grid">
+    <div class="chart-card glass-card">
+      <h3><i class="fa-solid fa-chart-line"></i> Monthly Borrowing Trend</h3>
+      <div class="chart-wrap"><canvas id="monthlyChart"></canvas></div>
+    </div>
+    <div class="chart-card glass-card">
+      <h3><i class="fa-solid fa-trophy"></i> Top 5 Most Borrowed Books</h3>
+      <div class="chart-wrap"><canvas id="topBooksChart"></canvas></div>
+    </div>
+    <div class="chart-card glass-card">
+      <h3><i class="fa-solid fa-chart-pie"></i> User Types</h3>
+      <div class="chart-wrap"><canvas id="userTypeChart"></canvas></div>
+    </div>
+    <div class="chart-card glass-card">
+      <h3><i class="fa-solid fa-layer-group"></i> Books by Category</h3>
+      <div class="chart-wrap"><canvas id="categoryChart"></canvas></div>
+    </div>
+    <div class="chart-card glass-card">
+      <h3><i class="fa-solid fa-circle-half-stroke"></i> Borrow Status Overview</h3>
+      <div class="chart-wrap"><canvas id="statusChart"></canvas></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const chartDefaults = {
+  plugins: { legend: { labels: { color: '#cbd5e1', font: { family: 'Nunito' } } } },
+  scales: {
+    x: { grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { color: '#94a3b8' } },
+    y: { grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { color: '#94a3b8' } }
+  }
+};
+const noAxes = { plugins: { legend: { labels: { color: '#cbd5e1', font: { family: 'Nunito' } } } } };
+const COLORS = ['#00d4aa','#7c3aed','#3b82f6','#f59e0b','#ef4444','#10b981','#8b5cf6'];
+
+fetch('/admin/analytics-data').then(r=>r.json()).then(d => {
+  // Monthly
+  new Chart(document.getElementById('monthlyChart'), {
+    type:'line', data:{
+      labels: d.monthly.labels,
+      datasets:[{ label:'Borrows', data:d.monthly.data, borderColor:'#00d4aa', backgroundColor:'rgba(0,212,170,0.1)', fill:true, tension:0.4, pointBackgroundColor:'#00d4aa' }]
+    }, options:chartDefaults
+  });
+
+  // Top Books
+  new Chart(document.getElementById('topBooksChart'), {
+    type:'bar', data:{
+      labels: d.top_books.labels,
+      datasets:[{ label:'Times Borrowed', data:d.top_books.data, backgroundColor: COLORS.map(c=>c+'99'), borderColor:COLORS, borderWidth:2, borderRadius:6 }]
+    }, options:chartDefaults
+  });
+
+  // User Types
+  new Chart(document.getElementById('userTypeChart'), {
+    type:'doughnut', data:{
+      labels:['Students','Teachers'],
+      datasets:[{ data:[d.user_types.students, d.user_types.teachers], backgroundColor:['#00d4aa99','#7c3aed99'], borderColor:['#00d4aa','#7c3aed'], borderWidth:2 }]
+    }, options:noAxes
+  });
+
+  // Categories
+  new Chart(document.getElementById('categoryChart'), {
+    type:'pie', data:{
+      labels: d.categories.labels,
+      datasets:[{ data:d.categories.data, backgroundColor: d.categories.labels.map((_,i)=>COLORS[i%COLORS.length]+'99'), borderColor: d.categories.labels.map((_,i)=>COLORS[i%COLORS.length]), borderWidth:2 }]
+    }, options:noAxes
+  });
+
+  // Status
+  new Chart(document.getElementById('statusChart'), {
+    type:'doughnut', data:{
+      labels:['Issued','Returned','Pending'],
+      datasets:[{ data:[d.borrow_status.issued, d.borrow_status.returned, d.borrow_status.pending], backgroundColor:['#3b82f699','#00d4aa99','#f59e0b99'], borderColor:['#3b82f6','#00d4aa','#f59e0b'], borderWidth:2 }]
+    }, options:noAxes
+  });
+}).catch(e => console.error('Analytics data error:', e));
+</script>
+{% endblock %}

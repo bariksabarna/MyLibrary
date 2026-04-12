@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% block title %}Return QR - MyLibrary{% endblock %}
+{% block content %}
+<div class="page-container">
+  <div class="qr-page glass-card">
+    <div class="qr-header">
+      <div class="qr-icon-wrap warning"><i class="fa-solid fa-rotate-left"></i></div>
+      <h2>Return QR Code</h2>
+      <p>Show this code to the librarian to return your book</p>
+    </div>
+    <div class="qr-content">
+      <div class="qr-book-info">
+        {% if book.get('cover_url') %}
+          <img src="{{ book.cover_url }}" alt="Cover" class="qr-book-cover">
+        {% endif %}
+        <div>
+          <h3>{{ book.get('title','') }}</h3>
+          <p>{{ book.get('author','') }}</p>
+        </div>
+      </div>
+      <div class="qr-image-wrap">
+        <img src="data:image/png;base64,{{ qr_data }}" alt="Return QR" class="qr-image">
+      </div>
+      <div class="qr-token">
+        <span>Return Token:</span>
+        <code>{{ borrow.return_token }}</code>
+      </div>
+      {% if current_fine > 0 %}
+      <div class="fine-alert">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <div>
+          <strong>Overdue Fine: ₹{{ current_fine }}</strong>
+          <p>Due date was {{ fmt_date(borrow.due_date) }}</p>
+        </div>
+      </div>
+      {% else %}
+      <div class="no-fine-alert">
+        <i class="fa-solid fa-circle-check"></i>
+        <span>No fine — returned on time!</span>
+      </div>
+      {% endif %}
+    </div>
+    <a href="{{ url_for('my_borrows') }}" class="btn-outline"><i class="fa-solid fa-arrow-left"></i> My Borrows</a>
+  </div>
+</div>
+{% endblock %}

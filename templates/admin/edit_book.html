@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% block title %}Edit Book — MyLibrary{% endblock %}
+{% block content %}
+<div class="page-container">
+  <a href="{{ url_for('admin_books') }}" class="back-link"><i class="fa-solid fa-arrow-left"></i> Back</a>
+  <div class="page-header"><h1><i class="fa-solid fa-pen"></i> Edit Book</h1></div>
+  <div class="glass-card form-card" style="max-width:700px;">
+    <form method="POST" enctype="multipart/form-data" class="book-form">
+
+      <!-- Cover Upload -->
+      <div class="cover-upload-area" id="coverUploadArea" onclick="document.getElementById('coverInput').click()">
+        {% if book.get('cover_url') %}
+          <img id="coverImg" src="{{ book.cover_url }}" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:12px;">
+          <div id="coverPreview" style="display:none;"></div>
+        {% else %}
+          <div id="coverPreview" class="cover-preview-empty">
+            <i class="fa-solid fa-cloud-arrow-up"></i>
+            <p>Click to upload new cover</p>
+            <small>Auto-converts to AVIF · Uploaded to Cloudinary</small>
+          </div>
+          <img id="coverImg" src="" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:12px;">
+        {% endif %}
+        <input type="file" id="coverInput" name="cover_image" accept="image/*" style="display:none;" onchange="previewCover(this)">
+        <div class="cover-edit-overlay"><i class="fa-solid fa-camera"></i> Change Cover</div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label><i class="fa-solid fa-book"></i> Book Title *</label>
+          <input type="text" name="title" value="{{ book.title }}" required>
+        </div>
+        <div class="form-group">
+          <label><i class="fa-solid fa-user-pen"></i> Author</label>
+          <input type="text" name="author" value="{{ book.author or '' }}">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label><i class="fa-solid fa-graduation-cap"></i> Trade / Branch</label>
+          <input type="text" name="trade" value="{{ book.trade or '' }}">
+        </div>
+        <div class="form-group">
+          <label><i class="fa-solid fa-layer-group"></i> Semester</label>
+          <select name="semester">
+            <option value="">Not Applicable</option>
+            {% for s in ['1','2','3','4','5','6'] %}
+            <option value="{{ s }}" {% if book.semester==s %}selected{% endif %}>Semester {{ s }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label><i class="fa-solid fa-align-left"></i> Description</label>
+        <textarea name="description" rows="3">{{ book.description or '' }}</textarea>
+      </div>
+
+      <div class="form-group">
+        <label><i class="fa-solid fa-copy"></i> Total Copies</label>
+        <input type="number" name="total_quantity" min="0" value="{{ book.total_quantity }}" style="max-width:160px;">
+        <small class="text-muted" style="margin-top:4px;display:block;">Currently available: {{ book.available_quantity }}</small>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn-primary btn-lg"><i class="fa-solid fa-save"></i> Save Changes</button>
+        <a href="{{ url_for('admin_books') }}" class="btn-outline btn-lg">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<style>
+.cover-upload-area {
+  width:100%; height:200px; border:2px dashed rgba(99,102,241,0.3);
+  border-radius:14px; cursor:pointer; overflow:hidden; position:relative;
+  background:rgba(99,102,241,0.04); transition:all 0.2s; margin-bottom:8px;
+}
+.cover-upload-area:hover { border-color:rgba(99,102,241,0.6); }
+.cover-upload-area:hover .cover-edit-overlay { opacity:1; }
+.cover-edit-overlay {
+  position:absolute; inset:0; background:rgba(0,0,0,0.5);
+  display:flex; align-items:center; justify-content:center;
+  gap:8px; color:#fff; font-weight:700; opacity:0; transition:opacity 0.2s;
+}
+.cover-preview-empty { display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; gap:8px; color:var(--text-muted); }
+.cover-preview-empty i { font-size:2.5rem; color:rgba(99,102,241,0.5); }
+</style>
+<script>
+function previewCover(input) {
+  if (!input.files || !input.files[0]) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('coverImg').src = e.target.result;
+    document.getElementById('coverImg').style.display = 'block';
+    const cp = document.getElementById('coverPreview');
+    if (cp) cp.style.display = 'none';
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+</script>
+{% endblock %}

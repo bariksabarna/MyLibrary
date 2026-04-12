@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% block title %}Manage Users - MyLibrary{% endblock %}
+{% block content %}
+<div class="page-container">
+  <div class="page-header">
+    <h1><i class="fa-solid fa-users"></i> User Management</h1>
+  </div>
+
+  <!-- Filters -->
+  <div class="glass-card filter-bar">
+    <form method="GET" class="filter-form">
+      <input type="text" name="q" placeholder="Search name, email, reg no..." value="{{ filters.search }}">
+      <select name="user_type">
+        <option value="">All Types</option>
+        <option value="student" {% if filters.user_type=='student' %}selected{% endif %}>Student</option>
+        <option value="teacher" {% if filters.user_type=='teacher' %}selected{% endif %}>Teacher</option>
+      </select>
+      <select name="year">
+        <option value="">All Years</option>
+        <option value="1st" {% if filters.year=='1st' %}selected{% endif %}>1st Year</option>
+        <option value="2nd" {% if filters.year=='2nd' %}selected{% endif %}>2nd Year</option>
+        <option value="3rd" {% if filters.year=='3rd' %}selected{% endif %}>3rd Year</option>
+        <option value="passout" {% if filters.year=='passout' %}selected{% endif %}>Passout</option>
+      </select>
+      <select name="status">
+        <option value="">All Status</option>
+        <option value="pending" {% if filters.status=='pending' %}selected{% endif %}>Pending Approval</option>
+        <option value="approved" {% if filters.status=='approved' %}selected{% endif %}>Approved</option>
+        <option value="defaulters" {% if filters.status=='defaulters' %}selected{% endif %}>Defaulters</option>
+      </select>
+      <button type="submit" class="btn-primary">Filter</button>
+      <a href="{{ url_for('admin_users') }}" class="btn-outline">Clear</a>
+    </form>
+  </div>
+
+  <div class="glass-card table-wrap">
+    <table class="lib-table">
+      <thead>
+        <tr>
+          <th>User</th><th>Type</th><th>Year/Trade</th><th>Reg No</th>
+          <th>Status</th><th>Borrows</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for u in users %}
+      <tr>
+        <td>
+          <div class="table-user-info">
+            {% if u.get('profile_image_url') %}
+              <img src="{{ u.profile_image_url }}" class="table-avatar">
+            {% else %}
+              <div class="table-avatar-ph"><i class="fa-solid fa-user"></i></div>
+            {% endif %}
+            <div>
+              <strong>{{ u.name }}</strong>
+              <small>{{ u.email }}</small>
+            </div>
+          </div>
+        </td>
+        <td><span class="tag">{{ u.user_type|title if u.user_type else 'N/A' }}</span></td>
+        <td>{{ u.year or u.trade or '—' }}</td>
+        <td><code>{{ u.reg_number or '—' }}</code></td>
+        <td>
+          {% if not u.is_verified %}
+            <span class="status-badge status-waiting">Unverified</span>
+          {% elif not u.is_approved %}
+            <span class="status-badge status-approved_pending_issue">Pending</span>
+          {% elif u.is_approved %}
+            <span class="status-badge status-issued">Approved</span>
+          {% endif %}
+          {% if not u.is_active %}<span class="status-badge status-returned">Inactive</span>{% endif %}
+        </td>
+        <td><span class="count-pill {% if u.borrow_count >= max_books %}red{% endif %}">{{ u.borrow_count }}/{{ max_books }}</span></td>
+        <td>
+          <div class="action-group">
+            <a href="{{ url_for('admin_user_detail', user_id=u.id) }}" class="btn-icon" title="View Details"><i class="fa-solid fa-eye"></i></a>
+            {% if not u.is_approved and u.is_verified %}
+              <form method="POST" action="{{ url_for('admin_approve_user', user_id=u.id) }}" style="display:inline;">
+                <button class="btn-icon btn-icon-success" title="Approve"><i class="fa-solid fa-check"></i></button>
+              </form>
+            {% endif %}
+            <form method="POST" action="{{ url_for('admin_delete_user', user_id=u.id) }}" style="display:inline;" onsubmit="return confirm('Delete this user? This cannot be undone.')">
+              <button class="btn-icon btn-icon-danger" title="Delete"><i class="fa-solid fa-trash"></i></button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="7" class="empty-td"><i class="fa-solid fa-users-slash"></i> No users found</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

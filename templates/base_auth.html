@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{% block title %}My Library{% endblock %}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Raleway:wght@300;400;500;600;700;800&family=Nunito:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="auth-body">
+<div class="auth-bg-particles"></div>
+
+<!-- Flash Messages -->
+<div class="flash-container">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+    <div class="flash flash-{{ category }}">
+      <i class="fa-solid {% if category == 'success' %}fa-circle-check{% elif category == 'danger' %}fa-circle-exclamation{% elif category == 'warning' %}fa-triangle-exclamation{% else %}fa-circle-info{% endif %}"></i>
+      <span>{{ message }}</span>
+      <button onclick="this.parentElement.remove()"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    {% endfor %}
+  {% endwith %}
+</div>
+
+<div class="auth-wrapper">
+  <div class="auth-brand">
+    <i class="fa-solid fa-book-open"></i>
+    <span>MyLibrary</span>
+  </div>
+  {% block content %}{% endblock %}
+</div>
+
+<script src="{{ url_for('static', filename='js/script.js') }}"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>
