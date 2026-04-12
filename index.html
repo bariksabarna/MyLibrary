@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyLibrary | Modern Online Library Management System</title>
+    
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="Access MyLibrary, the ultimate online library management system. Browse books, manage your collection, and explore a world of knowledge with our modern, easy-to-use platform.">
+    <meta name="keywords" content="mylibrary, online library, library management system, digital library, book management, isroot library">
+    <meta name="author" content="Sabarna Barik">
+    <link rel="canonical" href="https://mylibrary.isroot.in/">
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://mylibrary.isroot.in/">
+    <meta property="og:title" content="MyLibrary | Modern Online Library Management System">
+    <meta property="og:description" content="Access MyLibrary, the ultimate online library management system. Browse books, manage your collection, and explore a world of knowledge.">
+    <meta property="og:image" content="https://raw.githubusercontent.com/bariksabarna/library_system/main/static/images/og-image.jpg"> <!-- Note: User should ensure this image exists or I can generate a placeholder suggestion -->
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://mylibrary.isroot.in/">
+    <meta property="twitter:title" content="MyLibrary | Modern Online Library Management System">
+    <meta property="twitter:description" content="Access MyLibrary, the ultimate online library management system. Browse books, manage your collection, and explore a world of knowledge.">
+    <meta property="twitter:image" content="https://raw.githubusercontent.com/bariksabarna/library_system/main/static/images/og-image.jpg">
+
+    <!-- Redirection Logic (Meta Refresh) -->
+    <meta http-equiv="refresh" content="0; url=https://bariksabarna.pythonanywhere.com">
+
+    <!-- Styling for a Premium Experience -->
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --bg: #0f172a;
+            --text: #f8fafc;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .container {
+            text-align: center;
+            padding: 2rem;
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(12px);
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            max-width: 400px;
+            width: 90%;
+            animation: fadeIn 0.8s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .logo {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #818cf8 0%, #6366f1 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 1rem;
+            letter-spacing: -0.025em;
+        }
+
+        .loader {
+            width: 48px;
+            height: 48px;
+            border: 5px solid rgba(255, 255, 255, 0.1);
+            border-bottom-color: var(--primary);
+            border-radius: 50%;
+            display: inline-block;
+            box-sizing: border-box;
+            animation: rotation 1s linear infinite;
+            margin-bottom: 1.5rem;
+        }
+
+        @keyframes rotation {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        h1 {
+            font-size: 1.25rem;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: #94a3b8;
+        }
+
+        p {
+            font-size: 0.875rem;
+            color: #64748b;
+        }
+
+        .manual-link {
+            display: inline-block;
+            margin-top: 1.5rem;
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+            transition: color 0.2s;
+        }
+
+        .manual-link:hover {
+            color: var(--primary-dark);
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="logo">MyLibrary</div>
+        <div class="loader"></div>
+        <h1>Redirecting you safely...</h1>
+        <p>You're being moved to our main platform.</p>
+        <a href="https://bariksabarna.pythonanywhere.com" class="manual-link">Click here if not redirected</a>
+    </div>
+
+    <!-- Fallback JavaScript Redirection -->
+    <script>
+        setTimeout(function() {
+            window.location.replace("https://bariksabarna.pythonanywhere.com");
+        }, 100);
+    </script>
+</body>
+</html>
