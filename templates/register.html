@@ -38,11 +38,13 @@ Credit is required if you use any part of this code.
       <label><i class="fa-solid fa-user-tag"></i> I am a</label>
       <div class="radio-group">
         <label class="radio-card {% if form_data.get('user_type') == 'student' %}selected{% endif %}">
-          <input type="radio" name="user_type" value="student" onchange="toggleUserType()" {% if form_data.get('user_type','student') == 'student' %}checked{% endif %}>
+          <input type="radio" name="user_type" value="student" onchange="toggleUserType()" {% if
+            form_data.get('user_type','student')=='student' %}checked{% endif %}>
           <i class="fa-solid fa-graduation-cap"></i> Student
         </label>
         <label class="radio-card {% if form_data.get('user_type') == 'teacher' %}selected{% endif %}">
-          <input type="radio" name="user_type" value="teacher" onchange="toggleUserType()" {% if form_data.get('user_type') == 'teacher' %}checked{% endif %}>
+          <input type="radio" name="user_type" value="teacher" onchange="toggleUserType()" {% if
+            form_data.get('user_type')=='teacher' %}checked{% endif %}>
           <i class="fa-solid fa-chalkboard-user"></i> Teacher
         </label>
       </div>
@@ -64,7 +66,8 @@ Credit is required if you use any part of this code.
       <div class="form-row">
         <div class="form-group">
           <label><i class="fa-solid fa-id-badge"></i> Registration Number</label>
-          <input type="text" name="reg_number" placeholder="e.g. D2242533465" value="{{ form_data.get('reg_number','') }}">
+          <input type="text" name="reg_number" placeholder="e.g. D2242533465"
+            value="{{ form_data.get('reg_number','') }}">
         </div>
         <div class="form-group">
           <label><i class="fa-solid fa-calendar"></i> Year</label>
@@ -82,20 +85,22 @@ Credit is required if you use any part of this code.
     <div id="teacherFields" class="conditional-fields" style="display:none;">
       <div class="form-group">
         <label><i class="fa-solid fa-book"></i> Trade / Subject</label>
-        <input type="text" name="trade" placeholder="e.g. Computer Science, Electronics" value="{{ form_data.get('trade','') }}">
+        <input type="text" name="trade" placeholder="e.g. Computer Science, Electronics"
+          value="{{ form_data.get('trade','') }}">
       </div>
     </div>
 
     <div class="form-group">
-      <label><i class="fa-solid fa-camera"></i> Profile Photo <span class="optional">(optional)</span></label>
+      <label><i class="fa-solid fa-camera"></i> Profile Photo <span class="required-badge" style="background:rgba(239,68,68,0.1);color:#ef4444;font-size:10px;padding:2px 6px;border-radius:4px;margin-left:5px;text-transform:uppercase;font-weight:bold;letter-spacing:0.5px;">Required</span></label>
       <div class="upload-area-sm" id="profileUploadArea" onclick="document.getElementById('profileFileInput').click()">
-        <div id="profilePreview" class="upload-preview-sm-empty">
+        <div id="profilePreview" class="upload-preview-sm-empty text-center">
           <i class="fa-solid fa-user-circle"></i>
           <span>Click to upload photo</span>
         </div>
       </div>
-      <input type="file" id="profileFileInput" name="profile_image" accept="image/*" style="display:none;" onchange="previewProfile(this)">
-      <small class="text-muted" style="margin-top:5px;"><i class="fa-brands fa-cloudflare" style="color:#f59e0b;"></i> Auto-converted to AVIF &amp; uploaded to Cloudinary</small>
+      <input type="file" id="profileFileInput" accept="image/*" style="display:none;" onchange="uploadProfilePhoto(this)">
+      <input type="hidden" name="profile_image_url" id="profileImageUrl" value="{{ form_data.get('profile_image_url','') }}">
+      <small class="text-muted" style="display:block;margin-top:5px;" id="uploadStatus"><i class="fa-brands fa-cloudflare" style="color:#f59e0b;"></i> Auto-converted to AVIF &amp; uploaded to Cloudinary</small>
     </div>
 
     <div class="form-row">
@@ -103,14 +108,16 @@ Credit is required if you use any part of this code.
         <label><i class="fa-solid fa-lock"></i> Password</label>
         <div class="input-icon-r">
           <input type="password" name="password" id="regPass" placeholder="Min 8 chars, A-Z, 0-9, !@#" required>
-          <button type="button" class="eye-btn" onclick="togglePass('regPass',this)"><i class="fa-solid fa-eye"></i></button>
+          <button type="button" class="eye-btn" onclick="togglePass('regPass',this)"><i
+              class="fa-solid fa-eye"></i></button>
         </div>
       </div>
       <div class="form-group">
         <label><i class="fa-solid fa-lock-open"></i> Confirm Password</label>
         <div class="input-icon-r">
           <input type="password" name="confirm_password" id="regPass2" placeholder="Repeat password" required>
-          <button type="button" class="eye-btn" onclick="togglePass('regPass2',this)"><i class="fa-solid fa-eye"></i></button>
+          <button type="button" class="eye-btn" onclick="togglePass('regPass2',this)"><i
+              class="fa-solid fa-eye"></i></button>
         </div>
       </div>
     </div>
@@ -134,35 +141,81 @@ Credit is required if you use any part of this code.
 </div>
 
 <script>
-function previewProfile(input) {
-  const area = document.getElementById('profilePreview');
-  if (input.files && input.files[0]) {
+  function uploadProfilePhoto(input) {
+    if (!input.files || !input.files[0]) return;
+    
+    const file = input.files[0];
+    const preview = document.getElementById('profilePreview');
+    const status = document.getElementById('uploadStatus');
+    const urlInput = document.getElementById('profileImageUrl');
+    
+    // Show local preview immediately
     const reader = new FileReader();
     reader.onload = e => {
-      area.innerHTML = `<img src="${e.target.result}" style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid var(--accent);">`;
+      preview.innerHTML = `<img src="${e.target.result}" style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid var(--accent); opacity: 0.5;">`;
     };
-    reader.readAsDataURL(input.files[0]);
+    reader.readAsDataURL(file);
+    
+    // Preparation for upload
+    status.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Uploading to Cloudinary...`;
+    status.style.color = "var(--accent)";
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('folder', 'mylibrary/profiles');
+    
+    fetch('/api/upload', {
+      method: 'POST',
+      body: formData
+    })
+    .then(res => res.json())
+    .then(data => {
+      if (data.url) {
+        urlInput.value = data.url;
+        preview.querySelector('img').style.opacity = "1";
+        status.innerHTML = `<i class="fa-solid fa-circle-check" style="color:#00d4aa"></i> Photo uploaded successfully!`;
+        status.style.color = "#00d4aa";
+      } else {
+        throw new Error(data.error || 'Upload failed');
+      }
+    })
+    .catch(err => {
+      console.error(err);
+      status.innerHTML = `<i class="fa-solid fa-circle-xmark" style="color:#ef4444"></i> Upload failed. Try again.`;
+      status.style.color = "#ef4444";
+    });
   }
-}
-function toggleUserType() {
-  const t = document.querySelector('input[name="user_type"]:checked')?.value;
-  document.getElementById('studentFields').style.display = t === 'student' ? 'block' : 'none';
-  document.getElementById('teacherFields').style.display = t === 'teacher' ? 'block' : 'none';
-  document.querySelectorAll('.radio-card').forEach(c => c.classList.remove('selected'));
-  document.querySelector(`input[value="${t}"]`)?.closest('.radio-card')?.classList.add('selected');
-}
-document.getElementById('regPass').addEventListener('input', function() {
-  const v = this.value;
-  const checks = [v.length >= 8, /[A-Z]/.test(v), /[a-z]/.test(v), /\d/.test(v), /[!@#$%^&*(),.?":{}|<>_\-]/.test(v)];
-  ['r1','r2','r3','r4','r5'].forEach((id, i) => {
-    const el = document.getElementById(id);
-    el.innerHTML = `<i class="fa-solid ${checks[i] ? 'fa-circle-check" style="color:#00d4aa' : 'fa-circle-xmark" style="color:#ef4444'}"></i> ` + el.textContent.trim();
+
+  function previewProfile(input) {
+    // This function is now deprecated in favor of uploadProfilePhoto
+    const area = document.getElementById('profilePreview');
+    if (input.files && input.files[0]) {
+      const reader = new FileReader();
+      reader.onload = e => {
+        area.innerHTML = `<img src="${e.target.result}" style="width:64px;height:64px;border-radius:50%;object-fit:cover;border:2px solid var(--accent);">`;
+      };
+      reader.readAsDataURL(input.files[0]);
+    }
+  }
+  function toggleUserType() {
+    const t = document.querySelector('input[name="user_type"]:checked')?.value;
+    document.getElementById('studentFields').style.display = t === 'student' ? 'block' : 'none';
+    document.getElementById('teacherFields').style.display = t === 'teacher' ? 'block' : 'none';
+    document.querySelectorAll('.radio-card').forEach(c => c.classList.remove('selected'));
+    document.querySelector(`input[value="${t}"]`)?.closest('.radio-card')?.classList.add('selected');
+  }
+  document.getElementById('regPass').addEventListener('input', function () {
+    const v = this.value;
+    const checks = [v.length >= 8, /[A-Z]/.test(v), /[a-z]/.test(v), /\d/.test(v), /[!@#$%^&*(),.?":{}|<>_\-]/.test(v)];
+    ['r1', 'r2', 'r3', 'r4', 'r5'].forEach((id, i) => {
+      const el = document.getElementById(id);
+      el.innerHTML = `<i class="fa-solid ${checks[i] ? 'fa-circle-check" style="color:#00d4aa' : 'fa-circle-xmark" style="color:#ef4444'}"></i> ` + el.textContent.trim();
+    });
+    const score = checks.filter(Boolean).length;
+    const bar = document.getElementById('strengthBar');
+    bar.style.width = (score * 20) + '%';
+    bar.style.background = score < 2 ? '#ef4444' : score < 4 ? '#f59e0b' : '#00d4aa';
   });
-  const score = checks.filter(Boolean).length;
-  const bar = document.getElementById('strengthBar');
-  bar.style.width = (score * 20) + '%';
-  bar.style.background = score < 2 ? '#ef4444' : score < 4 ? '#f59e0b' : '#00d4aa';
-});
-toggleUserType();
+  toggleUserType();
 </script>
 {% endblock %}

@@ -85,6 +85,21 @@ def upload_to_cloudinary(file_storage, folder="mylibrary", public_id=None):
         print(f"Cloudinary upload error: {e}")
         return None
 
+@app.route('/api/upload', methods=['POST'])
+def api_upload():
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+    
+    folder = request.form.get('folder', 'mylibrary/others')
+    url = upload_to_cloudinary(file, folder=folder)
+    
+    if url:
+        return jsonify({'url': url})
+    return jsonify({'error': 'Upload failed'}), 500
+
 def generate_otp(length=6):
     return ''.join(random.choices(string.digits, k=length))
 
@@ -269,7 +284,7 @@ def register():
                 return render_template('register.html', form_data=request.form)
             # profile_image_url already set from hidden form field (browser uploaded directly)
             otp     = generate_otp()
-            expires = (datetime.utcnow() + timedelta(minutes=10)).isoformat()
+            expires = (datetime.utcnow() + timedelta(minutes=10)).isoformat() + 'Z'
             supabase.table('otp_store').delete().eq('email', email).eq('purpose', 'register').execute()
             supabase.table('otp_store').insert({'email': email, 'otp': otp, 'purpose': 'register', 'expires_at': expires}).execute()
             session['reg_data'] = {
@@ -372,7 +387,7 @@ def forgot_password():
         email = request.form.get('email', '').strip().lower()
         try:
             otp = generate_otp()
-            exp = (datetime.utcnow() + timedelta(minutes=10)).isoformat()
+            exp = (datetime.utcnow() + timedelta(minutes=10)).isoformat() + 'Z'
             supabase.table('otp_store').delete().eq('email', email).eq('purpose', 'forgot_password').execute()
             supabase.table('otp_store').insert({'email': email, 'otp': otp, 'purpose': 'forgot_password', 'expires_at': exp}).execute()
             if supabase.table('users').select('id').eq('email', email).execute().data:
@@ -508,7 +523,7 @@ def borrow_book(book_id):
                 flash(f'Added to queue at position {pos}.', 'info')
             return redirect(url_for('book_detail', book_id=book_id))
         token = generate_token('BORROW')
-        br = supabase.table('borrows').insert({'user_id': uid, 'book_id': book_id, 'token': token, 'status': 'approved_pending_issue', 'created_at': datetime.utcnow().isoformat()}).execute()
+        br = supabase.table('borrows').insert({'user_id': uid, 'book_id': book_id, 'token': token, 'status': 'approved_pending_issue', 'created_at': datetime.utcnow().isoformat() + 'Z'}).execute()
         borrow_id = br.data[0]['id']
         supabase.table('books').update({
             'available_quantity': max(0, book['available_quantity'] - 1)
@@ -1005,7 +1020,7 @@ def admin_confirm_return():
             qr = supabase.table('reservations').select('*').eq('book_id', b['book_id']).eq('status', 'waiting').order('created_at').limit(1).execute()
             if qr.data:
                 nq = qr.data[0]; tk = generate_token('BORROW')
-                supabase.table('borrows').insert({'user_id': nq['user_id'], 'book_id': b['book_id'], 'token': tk, 'status': 'approved_pending_issue', 'created_at': now.isoformat()}).execute()
+                supabase.table('borrows').insert({'user_id': nq['user_id'], 'book_id': b['book_id'], 'token': tk, 'status': 'approved_pending_issue', 'created_at': now.isoformat() + 'Z'}).execute()
                 supabase.table('reservations').update({'status': 'notified'}).eq('id', nq['id']).execute()
                 ur = supabase.table('users').select('name', 'email').eq('id', nq['user_id']).execute()
                 if ur.data:
@@ -1095,7 +1110,7 @@ def admin_process_action():
             b   = r.data[0]
             now = datetime.utcnow()
             due = now + timedelta(days=BORROW_DAYS)
-            supabase.table('borrows').update({'status': 'issued', 'borrow_date': now.isoformat(), 'due_date': due.isoformat()}).eq('id', borrow_id).execute()
+            supabase.table('borrows').update({'status': 'issued', 'borrow_date': now.isoformat() + 'Z', 'due_date': due.isoformat() + 'Z'}).eq('id', borrow_id).execute()
             flash(f'Book issued! Due: {due.strftime("%d %B %Y")}', 'success')
         elif action == 'return':
             r = supabase.table('borrows').select('*').eq('id', borrow_id).execute()
@@ -1103,7 +1118,7 @@ def admin_process_action():
             b    = r.data[0]
             now  = datetime.utcnow()
             fine = calculate_fine(b.get('due_date'), now)
-            supabase.table('borrows').update({'status': 'returned', 'return_date': now.isoformat(), 'fine': fine}).eq('id', borrow_id).execute()
+            supabase.table('borrows').update({'status': 'returned', 'return_date': now.isoformat() + 'Z', 'fine': fine}).eq('id', borrow_id).execute()
             bk = supabase.table('books').select('available_quantity', 'total_quantity', 'title').eq('id', b['book_id']).execute()
             if bk.data:
                 bd = bk.data[0]
@@ -1111,7 +1126,7 @@ def admin_process_action():
                 qr = supabase.table('reservations').select('*').eq('book_id', b['book_id']).eq('status', 'waiting').order('created_at').limit(1).execute()
                 if qr.data:
                     nq = qr.data[0]; tk = generate_token('BORROW')
-                    supabase.table('borrows').insert({'user_id': nq['user_id'], 'book_id': b['book_id'], 'token': tk, 'status': 'approved_pending_issue', 'created_at': now.isoformat()}).execute()
+                    supabase.table('borrows').insert({'user_id': nq['user_id'], 'book_id': b['book_id'], 'token': tk, 'status': 'approved_pending_issue', 'created_at': now.isoformat() + 'Z'}).execute()
                     supabase.table('reservations').update({'status': 'notified'}).eq('id', nq['id']).execute()
                     ur = supabase.table('users').select('name', 'email').eq('id', nq['user_id']).execute()
                     if ur.data:
