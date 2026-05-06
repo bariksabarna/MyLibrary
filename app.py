@@ -32,56 +32,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
 from supabase import create_client, Client
 from rapidfuzz import fuzz
-import pickle
-from googleapiclient.discovery import build
-from google_auth_oauthlib.flow import InstalledAppFlow
-from google.auth.transport.requests import Request
-from email.mime.text import MIMEText
+from gmail_auth import send_gmail
 
 load_dotenv()
-
-# ─── GMAIL AUTH CREDENTIALS ───────────────────────────────
-CREDENTIALS_JSON_STR = os.getenv("GMAIL_CREDENTIALS_JSON", '{}')
-try:
-    CREDENTIALS_JSON = json.loads(CREDENTIALS_JSON_STR)
-except Exception:
-    CREDENTIALS_JSON = {}
-
-TOKEN_B64 = os.getenv("GMAIL_TOKEN_B64", "")
-SCOPES = ['https://www.googleapis.com/auth/gmail.send']
-FROM_EMAIL = os.getenv("GMAIL_FROM_EMAIL", "randompas112000@gmail.com")
-
-def get_gmail_service():
-    creds = None
-    if TOKEN_B64:
-        try:
-            creds = pickle.loads(base64.b64decode(TOKEN_B64))
-        except Exception as e:
-            print(f"Gmail Auth: Failed to load token from environment: {e}")
-            creds = None
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_config(CREDENTIALS_JSON, SCOPES)
-            creds = flow.run_local_server(port=0)
-    return build('gmail', 'v1', credentials=creds)
-
-def send_gmail(to_email, subject, body_html):
-    service = get_gmail_service()
-    message = MIMEText(body_html, 'html')
-    message['to'] = to_email
-    message['from'] = FROM_EMAIL
-    message['subject'] = subject
-    raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
-    try:
-        msg = service.users().messages().send(userId='me', body={'raw': raw}).execute()
-        print(f"Gmail sent to {to_email}, id={msg['id']}")
-        return True
-    except Exception as e:
-        print(f"Gmail error: {e}")
-        return False
-# ────────────────────────────────────────────────────────
 
 app = Flask(__name__)
 app.secret_key = os.getenv("SECRET_KEY", "super_secret_library_key_123")
@@ -203,24 +156,6 @@ def fuzzy_search_books(query, books):
             scored.append((b, s))
     scored.sort(key=lambda x: x[1], reverse=True)
     return [i[0] for i in scored]
-
-def __get_books_by_ids(book_ids, columns='id, title, author, cover_url'):
-    if not book_ids: return {}
-    unique_ids = list(set([b for b in book_ids if b]))
-    try:
-        bks = supabase.table('books').select(columns).in_('id', unique_ids).execute()
-        return {str(b['id']): b for b in (bks.data or [])}
-    except:
-        return {}
-
-def __get_users_by_ids(user_ids, columns='id, name, email, reg_number, year, trade, user_type'):
-    if not user_ids: return {}
-    unique_ids = list(set([u for u in user_ids if u]))
-    try:
-        urs = supabase.table('users').select(columns).in_('id', unique_ids).execute()
-        return {str(u['id']): u for u in (urs.data or [])}
-    except:
-        return {}
 
 def fmt_date(dt_str):
     if not dt_str:
@@ -504,9 +439,9 @@ def index():
         ab_r = supabase.table('borrows').select('*').eq('user_id', uid).in_('status', ['issued', 'approved_pending_issue', 'return_pending']).execute()
         active = ab_r.data or []
         overdue_count = sum(1 for b in active if b.get('status') == 'issued' and calculate_fine(b.get('due_date')) > 0)
-        bk_map = __get_books_by_ids([b.get('book_id') for b in active])
         for b in active:
-            b['book'] = bk_map.get(str(b.get('book_id')), {})
+            bk = supabase.table('books').select('title', 'author', 'cover_url').eq('id', b['book_id']).execute()
+            b['book'] = bk.data[0] if bk.data else {}
         recent = supabase.table('books').select('*').order('created_at', desc=True).limit(8).execute().data or []
         return render_template('index.html', active_borrows=active, recent_books=recent, overdue_count=overdue_count, borrow_count=len(active))
     except Exception as e:
@@ -626,16 +561,16 @@ def my_borrows():
     try:
         br = supabase.table('borrows').select('*').eq('user_id', uid).order('created_at', desc=True).execute()
         borrows = []
-        bk_map = __get_books_by_ids([b.get('book_id') for b in (br.data or [])])
         for b in (br.data or []):
-            b['book'] = bk_map.get(str(b.get('book_id')), {})
+            bk = supabase.table('books').select('title', 'author', 'cover_url').eq('id', b['book_id']).execute()
+            b['book'] = bk.data[0] if bk.data else {}
             b['current_fine'] = calculate_fine(b.get('due_date')) if b.get('status') == 'issued' else (b.get('fine') or 0)
             borrows.append(b)
         qr = supabase.table('reservations').select('*').eq('user_id', uid).eq('status', 'waiting').execute()
         queues = []
-        q_bk_map = __get_books_by_ids([q.get('book_id') for q in (qr.data or [])])
         for q in (qr.data or []):
-            q['book'] = q_bk_map.get(str(q.get('book_id')), {})
+            bk = supabase.table('books').select('title', 'author', 'cover_url').eq('id', q['book_id']).execute()
+            q['book'] = bk.data[0] if bk.data else {}
             queues.append(q)
         return render_template('my_borrows.html', borrows=borrows, queue_items=queues)
     except Exception as e:
@@ -688,9 +623,9 @@ def library_card():
         card_qr_url = request.host_url.rstrip('/') + url_for('admin_process_token', token=f'LIBCARD-{uid}')
         card_qr = generate_qr_base64(card_qr_url)
         enriched = []
-        bk_map = __get_books_by_ids([b.get('book_id') for b in (br.data or [])], 'id, title, author')
         for b in (br.data or []):
-            b['book'] = bk_map.get(str(b.get('book_id')), {})
+            bk = supabase.table('books').select('title', 'author').eq('id', b['book_id']).execute()
+            b['book'] = bk.data[0] if bk.data else {}
             enriched.append(b)
         return render_template('library_card.html', user=user, borrows=enriched, queues=qr_data.data or [], card_qr=card_qr)
     except Exception as e:
@@ -767,23 +702,23 @@ def admin_dashboard():
         pending_returns   = supabase.table('borrows').select('id', count='exact').eq('status', 'return_pending').execute().count or 0
         recent_br = supabase.table('borrows').select('*').order('created_at', desc=True).limit(6).execute()
         recent_borrows = []
-        ur_map = __get_users_by_ids([b.get('user_id') for b in (recent_br.data or [])], 'id, name, email')
-        bk_map = __get_books_by_ids([b.get('book_id') for b in (recent_br.data or [])], 'id, title')
         for b in (recent_br.data or []):
-            b['user'] = ur_map.get(str(b.get('user_id')), {})
-            b['book'] = bk_map.get(str(b.get('book_id')), {})
+            ur = supabase.table('users').select('name', 'email').eq('id', b['user_id']).execute()
+            bk = supabase.table('books').select('title').eq('id', b['book_id']).execute()
+            b['user'] = ur.data[0] if ur.data else {}
+            b['book'] = bk.data[0] if bk.data else {}
             b['current_fine'] = calculate_fine(b.get('due_date')) if b.get('status') == 'issued' else (b.get('fine') or 0)
             recent_borrows.append(b)
         pending_users = supabase.table('users').select('*').eq('is_approved', False).eq('is_verified', True).order('created_at', desc=True).limit(5).execute().data or []
         overdue_r = supabase.table('borrows').select('*').eq('status', 'issued').execute()
         overdue_items = []
-        ov_ur_map = __get_users_by_ids([b.get('user_id') for b in (overdue_r.data or [])], 'id, name, email')
-        ov_bk_map = __get_books_by_ids([b.get('book_id') for b in (overdue_r.data or [])], 'id, title')
         for b in (overdue_r.data or []):
             fine = calculate_fine(b.get('due_date'))
             if fine > 0:
-                b['user'] = ov_ur_map.get(str(b.get('user_id')), {})
-                b['book'] = ov_bk_map.get(str(b.get('book_id')), {})
+                ur = supabase.table('users').select('name', 'email').eq('id', b['user_id']).execute()
+                bk = supabase.table('books').select('title').eq('id', b['book_id']).execute()
+                b['user'] = ur.data[0] if ur.data else {}
+                b['book'] = bk.data[0] if bk.data else {}
                 b['fine'] = fine
                 overdue_items.append(b)
         return render_template('admin/dashboard.html', total_users=total_users, total_books=total_books, active_borrows=active_borrows, pending_approvals=pending_approvals, pending_issues=pending_issues, pending_returns=pending_returns, recent_borrows=recent_borrows, pending_users=pending_users, overdue_items=overdue_items[:5])
@@ -982,11 +917,11 @@ def admin_borrows():
         if status_f: q = q.eq('status', status_f)
         result = q.execute()
         borrows = []
-        b_ur_map = __get_users_by_ids([b.get('user_id') for b in (result.data or [])], 'id, name, email, reg_number, year, trade, user_type')
-        b_bk_map = __get_books_by_ids([b.get('book_id') for b in (result.data or [])], 'id, title, author')
         for b in (result.data or []):
-            b['user'] = b_ur_map.get(str(b.get('user_id')), {})
-            b['book'] = b_bk_map.get(str(b.get('book_id')), {})
+            ur = supabase.table('users').select('name', 'email', 'reg_number', 'year', 'trade', 'user_type').eq('id', b['user_id']).execute()
+            bk = supabase.table('books').select('title', 'author').eq('id', b['book_id']).execute()
+            b['user'] = ur.data[0] if ur.data else {}
+            b['book'] = bk.data[0] if bk.data else {}
             b['current_fine'] = calculate_fine(b.get('due_date')) if b.get('status') == 'issued' else (b.get('fine') or 0)
             borrows.append(b)
         return render_template('admin/borrows.html', borrows=borrows, status_filter=status_f)
@@ -1335,6 +1270,5 @@ def admin_send_reminders():
     return redirect(url_for('admin_dashboard'))
 
 if __name__ == '__main__':
-    # Use environment port if available (Render/Heroku), default to 5000
     port = int(os.getenv("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=False)
