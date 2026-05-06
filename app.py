@@ -170,28 +170,11 @@ app.jinja_env.globals['fmt_date']        = fmt_date
 app.jinja_env.globals['calculate_fine'] = calculate_fine
 app.jinja_env.globals['APP_NAME']       = APP_NAME
 
-ES = f"""<div style="font-family:'Segoe UI',Arial,sans-serif;max-width:600px;margin:0 auto;background:linear-gradient(135deg,#0f172a,#1e293b);color:#e2e8f0;padding:30px;border-radius:16px;border:1px solid rgba(99,102,241,0.2);"><div style="text-align:center;margin-bottom:20px;"><h2 style="color:#6366f1;margin:0;">📚 {APP_NAME}</h2></div>"""
-EC = "</div>"
-
-def email_otp(otp, purpose='register'):
-    t = 'Registration' if purpose == 'register' else 'Password Reset'
-    return f"""{ES}<h3 style="text-align:center;">{t} OTP</h3><div style="background:rgba(99,102,241,0.1);border:1px solid #6366f1;padding:25px;border-radius:12px;text-align:center;margin:20px 0;"><p style="margin:0;color:#94a3b8;">Your OTP</p><h1 style="color:#6366f1;font-size:52px;letter-spacing:12px;margin:10px 0;">{otp}</h1><p style="margin:0;color:#64748b;font-size:13px;">Valid for 10 minutes</p></div>{EC}"""
-
-def email_borrow_approved(name, title, token, due_date):
-    return f"""{ES}<h3>Borrow Approved ✅</h3><p>Dear <strong>{name}</strong>,</p><p>Your request for <strong>"{title}"</strong> has been approved.</p><div style="background:rgba(99,102,241,0.1);border:1px solid #6366f1;padding:15px;border-radius:8px;margin:15px 0;"><p style="margin:5px 0;"><strong>Token:</strong> <span style="color:#6366f1;font-family:monospace;">{token}</span></p><p style="margin:5px 0;"><strong>Due Date:</strong> {due_date}</p></div><p style="color:#ef4444;">⚠️ Fine: ₹{FINE_PER_DAY}/day after {due_date}</p>{EC}"""
-
-def email_return_success(name, title, fine):
-    fn = f'<p style="color:#ef4444;"><strong>Fine: ₹{fine}</strong></p>' if fine > 0 else '<p style="color:#00d4aa;">✓ No fine</p>'
-    return f"""{ES}<h3>Book Returned ✅</h3><p>Dear <strong>{name}</strong>,</p><p>You returned <strong>"{title}"</strong>.</p>{fn}<p>Thank you for using {APP_NAME}!</p>{EC}"""
-
-def email_admin_approval(name):
-    return f"""{ES}<h3>Account Approved 🎉</h3><p>Dear <strong>{name}</strong>,</p><p>Your {APP_NAME} account has been <strong style="color:#6366f1;">approved</strong>. You can now login and borrow books.</p>{EC}"""
-
-def email_overdue(name, title, due_fmt, fine):
-    return f"""{ES}<h3 style="color:#ef4444;">⚠️ Overdue Notice</h3><p>Dear <strong>{name}</strong>,</p><p><strong>"{title}"</strong> is overdue!</p><div style="background:rgba(239,68,68,0.1);border:1px solid #ef4444;padding:15px;border-radius:8px;margin:15px 0;"><p><strong>Due:</strong> {due_fmt}</p><p><strong>Fine:</strong> <span style="color:#ef4444;font-size:20px;font-weight:bold;">₹{fine}</span></p></div><p>Please return immediately. Fine: ₹{FINE_PER_DAY}/day.</p>{EC}"""
-
-def email_reservation_ready(name, title, token):
-    return f"""{ES}<h3>Book Available 📚</h3><p>Dear <strong>{name}</strong>,</p><p><strong>"{title}"</strong> is now available!</p><div style="background:rgba(99,102,241,0.1);border:1px solid #6366f1;padding:15px;border-radius:8px;margin:15px 0;"><p><strong>Token:</strong> <span style="color:#6366f1;font-family:monospace;">{token}</span></p></div><p>Visit within 3 days to collect.</p>{EC}"""
+# ═══ PREMIUM EMAIL TEMPLATES ═══
+from email_templates import (
+    email_otp, email_borrow_approved, email_return_success,
+    email_admin_approval, email_overdue, email_reservation_ready,
+)
 
 def login_required(f):
     @wraps(f)
